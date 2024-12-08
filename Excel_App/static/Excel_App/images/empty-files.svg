@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- Light blue circle background -->
+    <circle cx="40" cy="40" r="40" fill="#F0F4FF"/>
+    
+    <!-- Excel icon -->
+    <g transform="translate(24, 20)">
+        <!-- Base rectangle for the file -->
+        <path d="M28 0H7C5.34315 0 4 1.34315 4 3V33C4 34.6569 5.34315 36 7 36H29C30.6569 36 32 34.6569 32 33V8L28 0Z" fill="#2196F3"/>
+        <!-- Folded corner -->
+        <path d="M28 0L32 8H28V0Z" fill="#1976D2"/>
+        
+        <!-- "X" text -->
+        <text x="12" y="24" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">X</text>
+    </g>
+</svg>

@@ -1,0 +1,2000 @@
+{% extends 'Excel_App/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto:wght@400;500&display=swap');
+
+    :root {
+        --main-color: #1B73FB;
+        --purple-card: #6C5CE7;
+        --blue-card: #0984E3;
+        --green-card: #00B894;
+        --orange-card: #E17055;
+        --card-radius: 20px;
+        --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .file-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        padding: 20px;
+        font-family: 'Poppins', sans-serif;
+    }
+
+    .info-card {
+        background: white;
+        padding: 25px;
+        border-radius: var(--card-radius);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: var(--card-shadow);
+    }
+
+    .info-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.2));
+        z-index: 1;
+    }
+
+    .info-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .info-card.filename {
+        background: linear-gradient(135deg, var(--purple-card), #a29bfe);
+        grid-column: 1 / -1;
+    }
+
+    .info-card.size {
+        background: linear-gradient(135deg, var(--blue-card), #74b9ff);
+    }
+
+    .info-card.uploaded {
+        background: linear-gradient(135deg, var(--green-card), #55efc4);
+    }
+
+    .info-card.dimensions {
+        background: linear-gradient(135deg, var(--orange-card), #fab1a0);
+    }
+
+    .info-card.last-update {
+        background: linear-gradient(135deg, #00b09b, #96c93d);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-card.last-update .update-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        color: white;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .info-label {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+
+    .info-value {
+        font-size: 1.5rem;
+        color: white;
+        font-weight: 600;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-icon {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        font-size: 3rem;
+        color: rgba(255, 255, 255, 0.2);
+        z-index: 0;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .info-card:hover .info-icon {
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Modern Theme Colors */
+    :root {
+        --main-color: #1B73FB;
+        --bg-color: #f0f5ff;
+        --card-bg: #ffffff;
+        --shadow: 0 8px 30px rgba(27, 115, 251, 0.15);
+        --border-radius: 15px;
+    }
+
+    body {
+        background-color: var(--bg-color);
+        padding: 20px;
+    }
+
+    /* Modern Card Design */
+    .section {
+        background: var(--card-bg);
+        border-radius: var(--border-radius);
+        box-shadow: var(--shadow);
+        padding: 25px;
+        margin-bottom: 30px;
+        border: 1px solid rgba(27, 115, 251, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .section:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(27, 115, 251, 0.2);
+    }
+
+    /* Modern Button Design */
+    .btn {
+        border-radius: 10px;
+        padding: 12px 24px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary, .btn-info, .calculate-btn {
+        background: linear-gradient(45deg, var(--main-color), #4990ff);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 15px rgba(27, 115, 251, 0.2);
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(27, 115, 251, 0.3);
+    }
+
+    /* Modern Table Design */
+    .table {
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        border: none;
+    }
+
+    .table thead th {
+        background: linear-gradient(45deg, var(--main-color), #4990ff);
+        color: white;
+        padding: 15px;
+        font-weight: 500;
+        border: none;
+    }
+
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(27, 115, 251, 0.05);
+        transform: scale(1.01);
+    }
+
+    /* Modern Form Controls */
+    .form-control, .form-select {
+        border-radius: 10px;
+        padding: 12px;
+        border: 2px solid #e1e8ff;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 3px rgba(27, 115, 251, 0.1);
+    }
+
+    /* File Icon Animation */
+    .file-icon {
+        font-size: 5rem;
+        color: var(--main-color);
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    /* Statistics Cards */
+    .stats-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 20px;
+        margin: 10px 0;
+        box-shadow: var(--shadow);
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(27, 115, 251, 0.2);
+    }
+
+    /* Filter Controls */
+    .filter-controls {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+    }
+
+    .search-input {
+        position: relative;
+    }
+
+    .search-input i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--main-color);
+    }
+
+    .search-input input {
+        padding-left: 45px;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 20px !important;
+        right: 20px !important;
+        z-index: 9999;
+    }
+
+    .toast {
+        background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+        min-width: 300px;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.4s ease-in-out !important;
+        position: relative;
+    }
+
+    .toast.showing {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .toast.hide {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    .toast.bg-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+    }
+
+    .toast .toast-content {
+        padding: 12px 35px 12px 15px;
+    }
+
+    .toast .toast-body {
+        padding: 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .toast .btn-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+        padding: 8px !important;
+        margin: 0 !important;
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+
+    .toast .btn-close:hover {
+        opacity: 1;
+    }
+
+    /* Loading Animation */
+    .loading {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .loading::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+        animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    /* Keep existing styles */
+    :root {
+        --main-color: #1B73FB;
+    }
+
+    .btn-primary {
+        background-color: var(--main-color);
+        border-color: var(--main-color);
+    }
+
+    .btn-primary:hover {
+        background-color: #1560d6;
+        border-color: #1560d6;
+    }
+
+    .btn-info {
+        background-color: var(--main-color);
+        border-color: var(--main-color);
+        color: white;
+    }
+
+    .btn-info:hover {
+        background-color: #1560d6;
+        border-color: #1560d6;
+        color: white;
+    }
+
+    .alert-info {
+        background-color: #e8f0fe;
+        border-color: var(--main-color);
+        color: var(--main-color);
+    }
+
+    .section h3 i {
+        color: var(--main-color);
+    }
+
+    .editing {
+        background-color: #e8f0fe !important;
+        border: 1px solid var(--main-color) !important;
+    }
+
+    .table thead th {
+        background-color: var(--main-color);
+        color: white;
+    }
+
+    .form-select:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 0.25rem rgba(27, 115, 251, 0.25);
+    }
+
+    .form-control:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 0.25rem rgba(27, 115, 251, 0.25);
+    }
+
+    .excel-container {
+        background-color: #EAF7FF;
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.03);
+        min-height: calc(100vh - 4rem);
+    }
+
+    .section {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .section h3 {
+        margin-bottom: 1rem;
+        color: #333;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* File Section Styles */
+    .file-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.5rem;
+        padding: 1rem;
+    }
+
+    .file-icon {
+        font-size: 5rem;
+        color: var(--main-color);
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 20px;
+        transition: all 0.3s ease;
+        animation: iconFloat 3s ease-in-out infinite;
+    }
+
+    .file-icon:hover {
+        animation: iconPulse 1s ease-in-out infinite;
+        transform: scale(1.1);
+        filter: drop-shadow(0 0 15px var(--main-color));
+    }
+
+    .file-info {
+        flex: 1;
+        padding: 15px;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        background: linear-gradient(145deg, #ffffff, #f5f5f5);
+        box-shadow: 5px 5px 15px #d9d9d9, -5px -5px 15px #ffffff;
+    }
+
+    .file-info:hover {
+        transform: translateY(-2px);
+        box-shadow: 8px 8px 20px #d1d1d1, -8px -8px 20px #ffffff;
+    }
+
+    .info-item {
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+    }
+
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .label {
+        font-weight: 600;
+        color: #666;
+        min-width: 120px;
+        margin-right: 10px;
+    }
+
+    .value {
+        color: #333;
+        font-family: monospace;
+    }
+
+    /* Table Styles */
+    .table-responsive {
+        overflow-x: auto;
+        margin-top: 1rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1rem;
+    }
+
+    th {
+        background: #f8f9fa;
+        padding: 12px;
+        font-weight: 600;
+        text-align: left;
+        border: 1px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    td {
+        padding: 8px 12px;
+        border: 1px solid #dee2e6;
+    }
+
+    tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Search and Filter Styles */
+    .search-controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .search-input {
+        flex: 1;
+        position: relative;
+    }
+
+    .search-input i {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .search-input input {
+        padding-left: 30px;
+    }
+
+    /* Loading Spinner */
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 200px;
+    }
+
+    /* Utility Classes */
+    .hidden {
+        display: none !important;
+    }
+
+    /* Button Styles */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn i {
+        font-size: 1rem;
+    }
+
+    .btn-success {
+        background-color: #198754;
+        border-color: #198754;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background-color: #157347;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5c636a;
+    }
+
+    .calculate-btn {
+        background-color: var(--main-color);
+        border-color: var(--main-color);
+        color: white;
+    }
+
+    .calculate-btn:hover {
+        background-color: #1560d6;
+        border-color: #1560d6;
+        color: white;
+    }
+
+    .file-name i {
+        color: var(--main-color);
+        font-size: 3.5rem;
+        margin-right: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .file-name i:hover {
+        transform: scale(1.1) rotate(5deg);
+        filter: drop-shadow(0 0 10px var(--main-color));
+    }
+
+    .excel-icon-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .excel-icon-container::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 120%;
+        height: 120%;
+        background: radial-gradient(circle, rgba(27,115,251,0.1) 0%, rgba(27,115,251,0) 70%);
+        transform: translate(-50%, -50%);
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .excel-icon-container:hover::after {
+        opacity: 1;
+    }
+
+    @keyframes iconPulse {
+        0% {
+            transform: scale(1);
+            filter: drop-shadow(0 0 0 var(--main-color));
+        }
+        50% {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 10px var(--main-color));
+        }
+        100% {
+            transform: scale(1);
+            filter: drop-shadow(0 0 0 var(--main-color));
+        }
+    }
+
+    @keyframes iconFloat {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    /* Filter System */
+    .filter-controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    /* Modern Section Titles */
+    .section-title {
+        font-family: 'Raleway', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #2d3436;
+        margin-bottom: 1.5rem;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 15px;
+        padding: 10px 0;
+        transform-origin: left;
+        animation: slideInTitle 0.6s ease-out forwards;
+    }
+
+    .section-title i {
+        font-size: 2rem;
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: pulseIcon 2s infinite;
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(to right, var(--main-color), #74b9ff);
+        border-radius: 2px;
+        animation: expandLine 0.6s ease-out forwards;
+    }
+
+    .section-title:hover i {
+        transform: scale(1.1);
+        transition: transform 0.3s ease;
+    }
+
+    @keyframes slideInTitle {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes pulseIcon {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    @keyframes expandLine {
+        from {
+            width: 0;
+            opacity: 0;
+        }
+        to {
+            width: 60px;
+            opacity: 1;
+        }
+    }
+
+    /* Enhanced File Icon Styles */
+    .excel-logo {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto 2rem;
+        position: relative;
+        perspective: 1000px;
+    }
+
+    .excel-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        position: relative;
+        z-index: 2;
+        filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+        animation: floatLogo 6s ease-in-out infinite;
+        transform-style: preserve-3d;
+    }
+
+    .excel-logo::after {
+        content: '';
+        position: absolute;
+        bottom: -15px;
+        left: 50%;
+        width: 80%;
+        height: 20px;
+        transform: translateX(-50%);
+        background: radial-gradient(ellipse at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 70%);
+        animation: shadowPulse 6s ease-in-out infinite;
+    }
+
+    @keyframes floatLogo {
+        0%, 100% {
+            transform: translateY(0) rotateY(0) scale(1);
+        }
+        25% {
+            transform: translateY(-20px) rotateY(10deg) scale(1.05);
+        }
+        50% {
+            transform: translateY(-10px) rotateY(-10deg) scale(1);
+        }
+        75% {
+            transform: translateY(-15px) rotateY(5deg) scale(1.02);
+        }
+    }
+
+    @keyframes shadowPulse {
+        0%, 100% {
+            transform: translateX(-50%) scale(1);
+            opacity: 0.3;
+        }
+        25% {
+            transform: translateX(-45%) scale(0.8);
+            opacity: 0.2;
+        }
+        50% {
+            transform: translateX(-50%) scale(0.9);
+            opacity: 0.25;
+        }
+        75% {
+            transform: translateX(-55%) scale(0.85);
+            opacity: 0.2;
+        }
+    }
+
+    /* Enhanced Table Styles */
+    .table-container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .table-container:hover {
+        box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-bottom: 0;
+    }
+
+    .data-table thead th {
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        padding: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        border: none;
+    }
+
+    .data-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .data-table tbody tr:hover {
+        background-color: rgba(27, 115, 251, 0.05);
+        transform: scale(1.001);
+    }
+
+    .data-table td {
+        padding: 1rem;
+        border: none;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.95rem;
+        color: #2d3436;
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Table Search and Controls */
+    .table-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .search-container {
+        flex: 1;
+        min-width: 250px;
+        position: relative;
+    }
+
+    .search-container input {
+        width: 100%;
+        padding: 0.8rem 1rem 0.8rem 2.8rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+
+    .search-container input:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 4px rgba(27, 115, 251, 0.1);
+        outline: none;
+    }
+
+    .search-container i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #a0a0a0;
+        transition: color 0.3s ease;
+    }
+
+    .search-container input:focus + i {
+        color: var(--main-color);
+    }
+
+    /* Pagination Styles */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-top: 1px solid #edf2f7;
+        margin-top: 1rem;
+    }
+
+    .pagination-info {
+        color: #718096;
+        font-size: 0.9rem;
+    }
+
+    .pagination-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .page-button {
+        padding: 0.5rem 1rem;
+        border: none;
+        background: white;
+        color: var(--main-color);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid #e2e8f0;
+    }
+
+    .page-button:hover {
+        background: var(--main-color);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .page-button.active {
+        background: var(--main-color);
+        color: white;
+    }
+
+    /* Responsive Table */
+    @media (max-width: 768px) {
+        .table-container {
+            border-radius: 10px;
+            margin: 0 -15px;
+        }
+
+        .data-table td, 
+        .data-table th {
+            padding: 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        .table-controls {
+            flex-direction: column;
+        }
+
+        .search-container {
+            width: 100%;
+        }
+    }
+
+    /* Modern Format Selector Styles */
+    .format-selector {
+        display: flex;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .format-option {
+        flex: 1;
+        position: relative;
+        cursor: pointer;
+    }
+
+    .format-option input[type="radio"] {
+        display: none;
+    }
+
+    .format-option label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.5rem;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .format-option label:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 1;
+    }
+
+    .format-option label i {
+        font-size: 2rem;
+        margin-bottom: 0.8rem;
+        color: #2d3436;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 2;
+    }
+
+    .format-option label span {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #2d3436;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 2;
+    }
+
+    .format-option input[type="radio"]:checked + label {
+        border-color: var(--main-color);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(27, 115, 251, 0.15);
+    }
+
+    .format-option input[type="radio"]:checked + label:before {
+        opacity: 0.1;
+    }
+
+    .format-option input[type="radio"]:checked + label i,
+    .format-option input[type="radio"]:checked + label span {
+        color: var(--main-color);
+    }
+
+    .format-option label:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+    }
+
+    @keyframes selectPulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .format-option input[type="radio"]:checked + label i {
+        animation: selectPulse 0.5s ease;
+    }
+
+    /* Download Button Enhancement */
+    .download-btn {
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        transform-origin: center;
+    }
+
+    .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(27, 115, 251, 0.2);
+    }
+
+    .download-btn:active {
+        transform: scale(0.98);
+    }
+
+    .download-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Reload Button Styles */
+    .action-btn {
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        margin-right: 10px;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .action-btn:active {
+        transform: scale(0.98);
+    }
+
+    .action-btn i {
+        transition: transform 0.5s ease;
+    }
+
+    /* Edit Button Styles */
+    .edit-btn {
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        box-shadow: 0 8px 15px rgba(27, 115, 251, 0.2);
+    }
+
+    .edit-btn:hover {
+        box-shadow: 0 8px 15px rgba(27, 115, 251, 0.3);
+    }
+
+    /* Save Button Styles */
+    .save-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        box-shadow: 0 8px 15px rgba(40, 167, 69, 0.2);
+    }
+
+    .save-btn:hover {
+        box-shadow: 0 8px 15px rgba(40, 167, 69, 0.3);
+    }
+
+    /* Reload Button Styles */
+    .reload-btn {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.2);
+    }
+
+    .reload-btn:hover {
+        box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3);
+    }
+
+    .reload-btn.spinning i {
+        animation: spin 1s linear;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Action Buttons Container */
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: nowrap;
+    }
+
+    /* Download Button Styles */
+    .download-btn {
+        background: linear-gradient(135deg, #0097e6, #00a8ff);
+        box-shadow: 0 8px 15px rgba(0, 151, 230, 0.2);
+    }
+
+    .download-btn:hover {
+        box-shadow: 0 8px 15px rgba(0, 151, 230, 0.3);
+    }
+
+    /* Format Selection Container */
+    .format-selection {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .format-select {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 0.5rem;
+        font-size: 0.9rem;
+        color: #2d3436;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .format-select:focus {
+        border-color: var(--main-color);
+        box-shadow: 0 0 0 3px rgba(27, 115, 251, 0.1);
+        outline: none;
+    }
+
+    /* Modern Toast Styles */
+    .toast-container {
+        position: fixed;
+        top: 20px !important;
+        right: 20px !important;
+        z-index: 9999;
+    }
+
+    .toast {
+        background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+        min-width: 300px;
+        opacity: 0;
+        transform: translateX(100%);
+        transition: all 0.4s ease-in-out !important;
+        position: relative;
+    }
+
+    .toast.showing {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .toast.hide {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    .toast.bg-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b) !important;
+    }
+
+    .toast .toast-content {
+        padding: 12px 35px 12px 15px;
+    }
+
+    .toast .toast-body {
+        padding: 0;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .toast .btn-close {
+        position: absolute !important;
+        top: 8px !important;
+        right: 8px !important;
+        padding: 8px !important;
+        margin: 0 !important;
+        opacity: 0.8;
+        transition: opacity 0.3s ease;
+    }
+
+    .toast .btn-close:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="excel-container">
+        <!-- File Information Section -->
+        <div class="section">
+            <h3 class="section-title">
+                <i class="fas fa-file-excel"></i>
+                File Information
+            </h3>
+            
+            <!-- Excel Logo with Animation -->
+            <div class="excel-logo">
+                <img src="{% static 'css/images/exceller.png' %}" alt="Excel Logo">
+            </div>
+
+            <div class="file-info-grid">
+                <div class="info-card filename">
+                    <div class="info-label">File Name</div>
+                    <div class="info-value">{{ file_info.file_name }}</div>
+                    <i class="fas fa-file-alt info-icon"></i>
+                </div>
+                <div class="info-card size">
+                    <div class="info-label">Size</div>
+                    <div class="info-value">{{ file_info.file_size }}</div>
+                    <i class="fas fa-database info-icon"></i>
+                </div>
+                <div class="info-card uploaded">
+                    <div class="info-label">Uploaded</div>
+                    <div class="info-value">{{ file_info.upload_time }}</div>
+                    <i class="fas fa-cloud-upload-alt info-icon"></i>
+                </div>
+                <div class="info-card dimensions">
+                    <div class="info-label">Dimensions</div>
+                    <div class="info-value">{{ file_info.rows_count }} × {{ file_info.columns_count }}</div>
+                    <i class="fas fa-table info-icon"></i>
+                </div>
+                <div class="info-card last-update">
+                    <div class="update-badge">Last Edit</div>
+                    <div class="info-label">Last Modified</div>
+                    <div class="info-value">{{ file_info.last_modified|default:"No edits yet" }}</div>
+                    <i class="fas fa-history info-icon"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistical Analysis Section -->
+        <div class="section mb-4">
+            <h3 class="section-title">
+                <i class="fas fa-calculator"></i>
+                Statistical Analysis
+            </h3>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <select id="columnSelect" class="form-select">
+                                        <option value="">Select Column</option>
+                                        {% for column in data.columns %}
+                                        <option value="{{ column }}">{{ column }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="calculationType" class="form-select">
+                                        <option value="">Select Calculation</option>
+                                        <option value="mean">Mean</option>
+                                        <option value="median">Median</option>
+                                        <option value="mode">Mode</option>
+                                        <option value="sum">Sum</option>
+                                        <option value="count">Count</option>
+                                        <option value="std">Standard Deviation</option>
+                                        <option value="var">Variance</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button id="calculateBtn" class="btn calculate-btn">
+                                        <i class="fas fa-calculator"></i> Calculate
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="analysisResult" class="alert alert-info mt-3" role="alert">
+                                <span>No calculation performed yet</span>
+                                <button id="copyResult" class="btn btn-sm btn-outline-primary float-end hidden">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Overview Table -->
+        <div class="section mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="section-title">
+                    <i class="fas fa-chart-bar"></i>
+                    Statistics Overview
+                </h3>
+                <div class="action-buttons">
+                    <button id="reloadStatsBtn" class="action-btn reload-btn">
+                        <i class="fas fa-sync-alt"></i> Reload Stats
+                    </button>
+                    <div class="format-selection">
+                        <select id="statsFormat" class="format-select">
+                            <option value="xlsx">Excel (.xlsx)</option>
+                            <option value="csv">CSV (.csv)</option>
+                        </select>
+                        <button id="downloadStatsBtn" class="action-btn download-btn">
+                            <i class="fas fa-download"></i> Download Stats
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Column</th>
+                            <th>Count</th>
+                            <th>Mean</th>
+                            <th>Median</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Standard Deviation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statisticsBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Data Table Section -->
+        <div class="section mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="section-title">
+                    <i class="fas fa-table"></i>
+                    Data Table
+                </h3>
+                <div class="action-buttons">
+                    <button id="reloadBtn" class="action-btn reload-btn">
+                        <i class="fas fa-sync-alt"></i> Reload
+                    </button>
+                    <button id="editBtn" class="action-btn edit-btn">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                    <button id="saveBtn" class="action-btn save-btn hidden">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <div class="format-selection">
+                        <select id="downloadFormat" class="format-select hidden">
+                            <option value="xlsx">Excel (.xlsx)</option>
+                            <option value="csv">CSV (.csv)</option>
+                        </select>
+                        <button id="downloadBtn" class="action-btn download-btn hidden">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-controls">
+                <div class="search-container">
+                    <input type="text" id="tableSearch" placeholder="Search in table...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="table data-table" id="dataTable">
+                    <thead>
+                        <tr>
+                            {% for column in data.columns %}
+                            <th>{{ column }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in data.values %}
+                        <tr>
+                            {% for cell in row %}
+                            <td>{{ cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        Showing <span id="startRow">1</span> to <span id="endRow">10</span> of <span id="totalRows">0</span> entries
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="page-button" id="prevPage"><i class="fas fa-chevron-left"></i></button>
+                        <button class="page-button active">1</button>
+                        <button class="page-button" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container position-fixed">
+            <div id="successToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                <div class="toast-content">
+                    <div class="toast-body">
+                        <i class="fas fa-check-circle"></i>
+                        <span class="toast-message"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="errorToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                <div class="toast-content">
+                    <div class="toast-body">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span class="toast-message"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const table = document.getElementById('dataTable');
+                const tbody = table.querySelector('tbody');
+                const thead = table.querySelector('thead');
+                const editBtn = document.getElementById('editBtn');
+                const saveBtn = document.getElementById('saveBtn');
+                const downloadBtn = document.getElementById('downloadBtn');
+                const downloadFormat = document.getElementById('downloadFormat');
+                const searchInput = document.getElementById('tableSearch');
+                const columnFilter = document.getElementById('filterColumn');
+                const statisticsBody = document.getElementById('statisticsBody');
+                const csrfToken = "{{ csrf_token }}";
+                const fileIndex = "{{ file_index }}";
+
+                function calculateStatistics() {
+                    const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    const stats = {};
+
+                    // Initialize statistics for each numeric column
+                    headers.forEach((header, colIndex) => {
+                        const values = rows.map(row => {
+                            const cell = row.cells[colIndex];
+                            const value = cell.textContent.trim();
+                            return isNaN(value) ? null : parseFloat(value);
+                        }).filter(val => val !== null);
+
+                        if (values.length > 0) {
+                            // Calculate statistics
+                            const sum = values.reduce((a, b) => a + b, 0);
+                            const mean = sum / values.length;
+                            const sortedValues = [...values].sort((a, b) => a - b);
+                            const median = values.length % 2 === 0 
+                                ? (sortedValues[values.length/2 - 1] + sortedValues[values.length/2]) / 2
+                                : sortedValues[Math.floor(values.length/2)];
+                            const min = Math.min(...values);
+                            const max = Math.max(...values);
+                            const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
+                            const stdDev = Math.sqrt(variance);
+
+                            stats[header] = {
+                                count: values.length,
+                                mean: mean.toFixed(2),
+                                median: median.toFixed(2),
+                                min: min.toFixed(2),
+                                max: max.toFixed(2),
+                                stdDev: stdDev.toFixed(2)
+                            };
+                        }
+                    });
+
+                    // Update statistics table
+                    statisticsBody.innerHTML = '';
+                    Object.entries(stats).forEach(([column, columnStats]) => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${column}</td>
+                            <td>${columnStats.count}</td>
+                            <td>${columnStats.mean}</td>
+                            <td>${columnStats.median}</td>
+                            <td>${columnStats.min}</td>
+                            <td>${columnStats.max}</td>
+                            <td>${columnStats.stdDev}</td>
+                        `;
+                        statisticsBody.appendChild(row);
+                    });
+                }
+
+                // Initialize statistics
+                calculateStatistics();
+
+                // Update statistics when table data changes
+                const observer = new MutationObserver(() => {
+                    calculateStatistics();
+                });
+                observer.observe(tbody, { 
+                    childList: true, 
+                    subtree: true, 
+                    characterData: true 
+                });
+
+                // Search functionality
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const selectedColumn = columnFilter.value;
+                    const columnIndex = selectedColumn === 'all' ? -1 : 
+                        Array.from(thead.querySelectorAll('th')).findIndex(th => th.textContent.trim() === selectedColumn);
+
+                    Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                        if (columnIndex === -1) {
+                            // Search all columns
+                            const text = Array.from(row.cells).map(cell => cell.textContent.toLowerCase()).join(' ');
+                            row.style.display = text.includes(searchTerm) ? '' : 'none';
+                        } else {
+                            // Search specific column
+                            const cell = row.cells[columnIndex];
+                            const text = cell.textContent.toLowerCase();
+                            row.style.display = text.includes(searchTerm) ? '' : 'none';
+                        }
+                    });
+
+                    // Update statistics after filtering
+                    calculateStatistics();
+                });
+
+                // Statistical calculations
+                const columnSelect = document.getElementById('columnSelect');
+                const calculationType = document.getElementById('calculationType');
+                const calculateBtn = document.getElementById('calculateBtn');
+                const analysisResult = document.getElementById('analysisResult');
+                const copyResult = document.getElementById('copyResult');
+
+                calculateBtn.addEventListener('click', function() {
+                    const column = columnSelect.value;
+                    const calculation = calculationType.value;
+                    
+                    if (!column || !calculation) {
+                        showToast('error', 'Please select both column and calculation type');
+                        return;
+                    }
+
+                    const columnIndex = Array.from(thead.querySelectorAll('th'))
+                        .findIndex(th => th.textContent.trim() === column);
+
+                    if (columnIndex === -1) {
+                        showToast('error', 'Column not found');
+                        return;
+                    }
+
+                    // Get visible rows only
+                    const visibleRows = Array.from(tbody.querySelectorAll('tr'))
+                        .filter(row => row.style.display !== 'none');
+
+                    // Collect numeric values
+                    const values = visibleRows
+                        .map(row => {
+                            const value = parseFloat(row.cells[columnIndex].textContent.trim());
+                            return isNaN(value) ? null : value;
+                        })
+                        .filter(val => val !== null);
+
+                    if (values.length === 0) {
+                        showToast('error', 'No numeric values found in selected column');
+                        return;
+                    }
+
+                    // Calculate result
+                    let result;
+                    switch(calculation) {
+                        case 'mean':
+                            result = values.reduce((a, b) => a + b) / values.length;
+                            break;
+                        case 'median':
+                            const sorted = [...values].sort((a, b) => a - b);
+                            const mid = Math.floor(sorted.length / 2);
+                            result = sorted.length % 2 ? 
+                                sorted[mid] : 
+                                (sorted[mid - 1] + sorted[mid]) / 2;
+                            break;
+                        case 'mode':
+                            const counts = {};
+                            values.forEach(v => counts[v] = (counts[v] || 0) + 1);
+                            const maxCount = Math.max(...Object.values(counts));
+                            const modes = Object.entries(counts)
+                                .filter(([_, count]) => count === maxCount)
+                                .map(([value, _]) => parseFloat(value));
+                            result = modes.join(', ');
+                            break;
+                        case 'sum':
+                            result = values.reduce((a, b) => a + b);
+                            break;
+                        case 'count':
+                            result = values.length;
+                            break;
+                        case 'std':
+                            const mean = values.reduce((a, b) => a + b) / values.length;
+                            result = Math.sqrt(values.reduce((a, b) => 
+                                a + Math.pow(b - mean, 2), 0) / values.length);
+                            break;
+                        case 'var':
+                            const mean2 = values.reduce((a, b) => a + b) / values.length;
+                            result = values.reduce((a, b) => 
+                                a + Math.pow(b - mean2, 2), 0) / values.length;
+                            break;
+                    }
+
+                    // Format result
+                    const formattedResult = typeof result === 'number' ? 
+                        result.toFixed(2) : result;
+
+                    // Update result display
+                    analysisResult.querySelector('span').textContent = 
+                        `${calculation.charAt(0).toUpperCase() + calculation.slice(1)} of ${column}: ${formattedResult}`;
+                    copyResult.classList.remove('hidden');
+                    
+                    showToast('success', 'Calculation completed');
+                });
+
+                // Copy result functionality
+                copyResult.addEventListener('click', function() {
+                    const text = analysisResult.querySelector('span').textContent;
+                    navigator.clipboard.writeText(text)
+                        .then(() => showToast('success', 'Result copied to clipboard'))
+                        .catch(() => showToast('error', 'Failed to copy result'));
+                });
+
+                // File actions
+                downloadBtn.addEventListener('click', function() {
+                    const format = downloadFormat.value;
+                    window.location.href = `/download_file/${fileIndex}/?format=${format}`;
+                });
+
+                saveBtn.addEventListener('click', function() {
+                    // Get all table data
+                    const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+                    const rows = Array.from(tbody.querySelectorAll('tr')).map(row => 
+                        Array.from(row.cells).map(cell => cell.textContent.trim())
+                    );
+
+                    // Create data array in the format the server expects
+                    const data = [];
+                    rows.forEach(row => {
+                        const rowData = {};
+                        headers.forEach((header, index) => {
+                            rowData[header] = row[index];
+                        });
+                        data.push(rowData);
+                    });
+
+                    console.log('Saving data:', data);
+
+                    // Send to server
+                    fetch(`/save_changes/${fileIndex}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ data: data })
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                console.log('Error response:', text);
+                                throw new Error(text || 'Network response was not ok');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Success response:', data);
+                        showToast('success', 'Changes saved successfully');
+                        
+                        // Make cells non-editable
+                        const cells = tbody.getElementsByTagName('td');
+                        for (let cell of cells) {
+                            cell.contentEditable = 'false';
+                            cell.classList.remove('editing');
+                        }
+                        
+                        saveBtn.classList.add('hidden');
+                        editBtn.classList.remove('hidden');
+                        
+                        // Show download button and format selector after successful save
+                        downloadBtn.classList.remove('hidden');
+                        downloadFormat.classList.remove('hidden');
+                    })
+                    .catch(error => {
+                        console.error('Save error:', error);
+                        showToast('error', 'Error saving changes. Please try again.');
+                        
+                        // Revert cells to non-editable on error
+                        const cells = tbody.getElementsByTagName('td');
+                        for (let cell of cells) {
+                            cell.contentEditable = 'false';
+                            cell.classList.remove('editing');
+                        }
+                        
+                        saveBtn.classList.add('hidden');
+                        editBtn.classList.remove('hidden');
+                        
+                        // Hide download button and format selector on error
+                        downloadBtn.classList.add('hidden');
+                        downloadFormat.classList.add('hidden');
+                    });
+                });
+
+                editBtn.addEventListener('click', function() {
+                    const cells = tbody.getElementsByTagName('td');
+                    for (let cell of cells) {
+                        cell.contentEditable = 'true';
+                        cell.classList.add('editing');
+                    }
+                    editBtn.classList.add('hidden');
+                    saveBtn.classList.remove('hidden');
+                    // Hide download button and format selector when editing starts
+                    downloadBtn.classList.add('hidden');
+                    downloadFormat.classList.add('hidden');
+                });
+
+                // Add statistics download functionality
+                const downloadStatsBtn = document.getElementById('downloadStatsBtn');
+                const statsFormat = document.getElementById('statsFormat');
+
+                downloadStatsBtn.addEventListener('click', function() {
+                    // Get statistics table data
+                    const statsTable = document.getElementById('statisticsBody');
+                    const headers = ['Column', 'Count', 'Mean', 'Median', 'Min', 'Max', 'Standard Deviation'];
+                    const rows = Array.from(statsTable.querySelectorAll('tr')).map(row => 
+                        Array.from(row.cells).map(cell => cell.textContent.trim())
+                    );
+
+                    // Create CSV content
+                    let csvContent = headers.join(',') + '\n';
+                    rows.forEach(row => {
+                        csvContent += row.join(',') + '\n';
+                    });
+
+                    // Create and trigger download
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `statistics_overview.${statsFormat.value}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    showToast('success', 'Statistics downloaded successfully');
+                });
+
+                // Reload Button Functionality
+                document.getElementById('reloadBtn').addEventListener('click', function() {
+                    const button = this;
+                    const icon = button.querySelector('i');
+                    
+                    // Add spinning animation
+                    button.classList.add('spinning');
+                    
+                    // Disable button during reload
+                    button.disabled = true;
+                    
+                    // Reload the table data
+                    fetch(window.location.href)
+                        .then(response => response.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const newDoc = parser.parseFromString(html, 'text/html');
+                            
+                            // Update table content
+                            const newTable = newDoc.getElementById('dataTable');
+                            const currentTable = document.getElementById('dataTable');
+                            currentTable.innerHTML = newTable.innerHTML;
+                            
+                            // Update file info if needed
+                            const newFileInfo = newDoc.querySelector('.file-info-grid');
+                            const currentFileInfo = document.querySelector('.file-info-grid');
+                            if (newFileInfo && currentFileInfo) {
+                                currentFileInfo.innerHTML = newFileInfo.innerHTML;
+                            }
+                            
+                            // Show success message
+                            showToast('success', 'Table data reloaded successfully');
+                        })
+                        .catch(error => {
+                            console.error('Error reloading data:', error);
+                            showToast('error', 'Error reloading data. Please try again.');
+                        })
+                        .finally(() => {
+                            // Remove spinning animation and re-enable button after slight delay
+                            setTimeout(() => {
+                                button.classList.remove('spinning');
+                                button.disabled = false;
+                            }, 500);
+                        });
+                });
+
+                // Add reload stats functionality
+                document.getElementById('reloadStatsBtn').addEventListener('click', function() {
+                    const button = this;
+                    const icon = button.querySelector('i');
+                    
+                    // Add spinning animation
+                    button.classList.add('spinning');
+                    
+                    // Disable button during reload
+                    button.disabled = true;
+                    
+                    // Recalculate statistics
+                    calculateStatistics();
+                    
+                    // Show success message
+                    showToast('success', 'Statistics reloaded successfully');
+                    
+                    // Remove spinning animation and re-enable button after slight delay
+                    setTimeout(() => {
+                        button.classList.remove('spinning');
+                        button.disabled = false;
+                    }, 500);
+                });
+
+                // Last Update Tracking
+                function updateLastEditTime() {
+                    const now = new Date();
+                    const formattedDate = now.toLocaleString();
+                    
+                    const lastUpdateCard = document.querySelector('.info-card.last-update .info-value');
+                    if (lastUpdateCard) {
+                        lastUpdateCard.textContent = formattedDate;
+                        
+                        // Add animation class
+                        lastUpdateCard.classList.add('animate-update');
+                        setTimeout(() => {
+                            lastUpdateCard.classList.remove('animate-update');
+                        }, 1000);
+                    }
+                }
+
+                // Add to existing save functionality
+                saveBtn.addEventListener('click', function() {
+                    // Existing save logic
+                    {{ ... }}
+                    
+                    // Update last edit time
+                    updateLastEditTime();
+                });
+
+                // Toast function
+                function showToast(type, message) {
+                    const toast = document.getElementById(`${type}Toast`);
+                    toast.querySelector('.toast-body .toast-message').textContent = message;
+                    const bsToast = new bootstrap.Toast(toast);
+                    bsToast.show();
+                }
+            });
+        </script>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Add animation classes on load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add animation classes to elements
+        document.querySelectorAll('.section').forEach((section, index) => {
+            section.style.animationDelay = `${index * 0.1}s`;
+            section.classList.add('animate-fade-in');
+        });
+
+        // Add hover effects to buttons
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.classList.add('modern-btn');
+        });
+
+        // Keep existing JavaScript
+    });
+</script>
+{% endblock %}

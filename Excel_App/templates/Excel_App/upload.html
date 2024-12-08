@@ -1,0 +1,623 @@
+{% extends 'Excel_App/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .upload-container {
+        margin: 2rem auto;
+        max-width: 1200px;  /* Increased from 800px */
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .steps-container {
+        margin-bottom: 3rem;
+        padding: 2rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .steps-title {
+        text-align: center;
+        color: #2c3e50;
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        font-weight: 600;
+    }
+
+    .steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    .step-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .step-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .step-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #007bff, #00d2ff);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .step-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .step-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #007bff;
+        background: linear-gradient(135deg, #007bff, #00d2ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .step-number {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 24px;
+        height: 24px;
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .step-title {
+        font-size: 1.2rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .step-description {
+        color: #6c757d;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .upload-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .upload-area {
+        border: 2px dashed #007bff;
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .upload-area:hover {
+        border-color: #0056b3;
+        background: rgba(0, 123, 255, 0.05);
+    }
+
+    .upload-area.dragover {
+        background: rgba(0, 123, 255, 0.1);
+        border-color: #0056b3;
+        transform: scale(1.02);
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: #007bff;
+        margin-bottom: 1rem;
+        transition: transform 0.3s ease;
+    }
+
+    .upload-area:hover .upload-icon {
+        transform: translateY(-5px);
+    }
+
+    .upload-title {
+        font-size: 1.25rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .upload-text {
+        color: #6c757d;
+        margin: 0.5rem 0;
+    }
+
+    .browse-btn {
+        display: inline-block;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 500;
+        color: white;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    .browse-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    .file-info {
+        display: none;
+        margin: 1rem 0;
+        padding: 1rem;
+        background: linear-gradient(45deg, rgba(0, 123, 255, 0.1), rgba(0, 86, 179, 0.1));
+        border-radius: 10px;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .upload-btn {
+        display: none;
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+        color: white;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        border: none;
+        cursor: pointer;
+        border-radius: 50px;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    .upload-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    @keyframes slideIn {
+        from { transform: translateY(-10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .file-info-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .file-info-item i {
+        color: #007bff;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+    }
+
+    .file-name {
+        flex: 1;
+        margin-right: 1rem;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .file-size {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .remove-file-btn {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        margin-left: 1rem;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .remove-file-btn:hover {
+        background-color: rgba(220, 53, 69, 0.1);
+    }
+
+    /* Loading Overlay Styles */
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(3px);
+    }
+
+    .loading-spinner {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        animation: bounceIn 0.5s ease;
+    }
+
+    .loading-spinner i {
+        font-size: 3rem;
+        color: #007bff;
+        margin-bottom: 1rem;
+    }
+
+    .loading-spinner p {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+    }
+
+    @keyframes bounceIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.3);
+        }
+        50% {
+            opacity: 0.9;
+            transform: scale(1.1);
+        }
+        80% {
+            opacity: 1;
+            transform: scale(0.89);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+</style>
+
+<div class="upload-container">
+    <div class="steps-container">
+        <h2 class="steps-title">How It Works</h2>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <i class="fas fa-file-upload step-icon"></i>
+                <h3 class="step-title">Upload Excel</h3>
+                <p class="step-description">Select and upload your Excel file. We support .xlsx and .xls formats.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <i class="fas fa-table step-icon"></i>
+                <h3 class="step-title">View Data</h3>
+                <p class="step-description">Browse through your data with our interactive table viewer.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <i class="fas fa-chart-bar step-icon"></i>
+                <h3 class="step-title">Analyze</h3>
+                <p class="step-description">Visualize and analyze your data with powerful tools.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <i class="fas fa-magic step-icon"></i>
+                <h3 class="step-title">Transform</h3>
+                <p class="step-description">Sort, filter, and manage your Excel files effortlessly.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Uploading files...</p>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+        {% csrf_token %}
+        <div class="upload-area" id="drop-area">
+            <i class="fas fa-cloud-upload-alt upload-icon"></i>
+            <h3 class="upload-title">Drag & Drop Excel Files Here</h3>
+            <p class="upload-text">or</p>
+            <input type="file" name="excel_file" id="fileElem" accept=".xlsx, .xls" style="display:none" multiple>
+            <button type="button" class="browse-btn" id="browseBtn">Browse Files</button>
+            <p class="upload-text mt-2">Supports: .xlsx, .xls</p>
+        </div>
+
+        <div id="fileList" class="file-info" style="display: none;">
+            <div class="selected-files">
+                <h4 class="mb-3">Selected Files:</h4>
+                <ul id="fileItemsList" class="list-unstyled"></ul>
+            </div>
+        </div>
+
+        <button type="submit" class="upload-btn" id="uploadBtn">Upload Files</button>
+    </form>
+
+    <script>
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('fileElem');
+        const browseBtn = document.getElementById('browseBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileList = document.getElementById('fileList');
+        const fileItemsList = document.getElementById('fileItemsList');
+        let selectedFiles = new Set(); // Store unique files
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function updateFileList() {
+            fileItemsList.innerHTML = '';
+            
+            selectedFiles.forEach(file => {
+                const fileSize = (file.size / 1024).toFixed(2);
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                li.innerHTML = `
+                    <div class="file-info-item">
+                        <i class="fas fa-file-excel"></i>
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">(${fileSize} KB)</span>
+                        <button type="button" class="remove-file-btn" onclick="removeFile('${file.name}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                fileItemsList.appendChild(li);
+            });
+
+            // Show/hide elements based on file selection
+            if (selectedFiles.size > 0) {
+                fileList.style.display = 'block';
+                uploadBtn.style.display = 'block';
+                uploadBtn.textContent = selectedFiles.size === 1 
+                    ? 'Upload File' 
+                    : `Upload ${selectedFiles.size} Files`;
+            } else {
+                fileList.style.display = 'none';
+                uploadBtn.style.display = 'none';
+            }
+        }
+
+        function removeFile(fileName) {
+            // Remove file from selectedFiles Set
+            selectedFiles.forEach(file => {
+                if (file.name === fileName) {
+                    selectedFiles.delete(file);
+                }
+            });
+            updateFileList();
+        }
+
+        function handleFiles(files) {
+            if (!files) return;
+            
+            // Add new files to the Set
+            Array.from(files).forEach(file => {
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    // Check if file with same name already exists
+                    let exists = false;
+                    selectedFiles.forEach(existingFile => {
+                        if (existingFile.name === file.name) {
+                            exists = true;
+                        }
+                    });
+                    if (!exists) {
+                        selectedFiles.add(file);
+                    }
+                }
+            });
+
+            updateFileList();
+
+            // Update the file input's files
+            const dataTransfer = new DataTransfer();
+            selectedFiles.forEach(file => {
+                dataTransfer.items.add(file);
+            });
+            fileInput.files = dataTransfer.files;
+        }
+
+        // Event listeners
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        dropArea.addEventListener('drop', handleDrop, false);
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+        browseBtn.addEventListener('click', () => fileInput.click());
+
+        // Get the form element
+        const uploadForm = document.getElementById('uploadForm');
+
+        // Show loading overlay when form is submitted
+        uploadForm.addEventListener('submit', function(e) {
+            // Show the loading overlay
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+        });
+    </script>
+</div>
+
+{% if messages %}
+<div class="message-container">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-modern fade-in">
+        <div class="alert-content">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+            <span>{{ message }}</span>
+        </div>
+        <button type="button" class="close-btn" onclick="this.parentElement.style.display='none';">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+    .message-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        width: 90%;
+        max-width: 600px;
+    }
+
+    .alert-modern {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1rem;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .alert-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .alert-error {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+
+    .alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .close-btn:hover {
+        opacity: 1;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide messages after 5 seconds
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert-modern');
+        alerts.forEach(alert => {
+            alert.style.animation = 'fadeOut 0.5s ease-out forwards';
+            setTimeout(() => alert.remove(), 500);
+        });
+    }, 5000);
+});
+</script>
+{% endblock %}

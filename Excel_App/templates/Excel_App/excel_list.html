@@ -1,0 +1,2541 @@
+{% extends 'Excel_App/base.html' %}
+
+{% load static %}
+{% load excel_filters %}
+
+{% block extra_css %}
+<!-- Success Message -->
+<div id="successMessage" class="alert alert-success" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    <i class="fas fa-check-circle"></i> <span class="message-text"></span>
+</div>
+
+<script>
+    // Global variable to track if message has been shown
+    window.messageShown = false;
+</script>
+
+<!-- Django Messages -->
+{% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!window.messageShown) {
+                {% for message in messages %}
+                    {% if message.tags == 'success' %}
+                        showSuccessMessage("{{ message }}");
+                        window.messageShown = true;
+                        break;
+                    {% endif %}
+                {% endfor %}
+            }
+        });
+    </script>
+{% endif %}
+<style>
+    
+    /* Modal Styles */
+    .confirmation-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+        animation: fadeIn 0.2s ease;
+    }
+
+    .confirmation-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 15px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        animation: slideIn 0.3s ease;
+    }
+
+    .confirmation-content h3 {
+        color: #2d3748;
+        margin-bottom: 1rem;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .confirmation-content p {
+        color: #4a5568;
+        margin-bottom: 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    .confirmation-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn-cancel, .btn-confirm {
+        padding: 0.75rem 1.75rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-cancel {
+        background: #e2e8f0;
+        color: #4a5568;
+    }
+
+    .btn-cancel:hover {
+        background: #cbd5e0;
+        transform: translateY(-1px);
+    }
+
+    .btn-confirm {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-confirm:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* File List Styles */
+    .files-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2.5rem;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.95) 100%);
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        animation: slideDown 0.6s ease-out;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+        position: relative;
+    }
+
+    .section-title .title-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        border-radius: 12px;
+        color: white;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        transition: all 0.3s ease;
+        animation: iconPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s both,
+                 iconFloat 3s ease-in-out infinite;
+    }
+
+    .section-title .title-icon:hover {
+        transform: scale(1.05) rotate(5deg);
+        box-shadow: 0 6px 15px rgba(34, 197, 94, 0.3);
+    }
+
+    .section-title .title-text {
+        background: linear-gradient(135deg, #1e293b, #334155);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: slideRight 0.5s ease-out 0.1s both, glowPulse 2s ease-in-out infinite;
+        position: relative;
+        text-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+    }
+
+    .section-title .title-text::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+            transparent 0%,
+            rgba(59, 130, 246, 0.2) 50%,
+            transparent 100%);
+        animation: shimmer 3s infinite;
+        transform: skewX(-20deg);
+    }
+
+    @keyframes glowPulse {
+        0% {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0);
+        }
+        50% {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        100% {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0);
+        }
+    }
+
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-150%) skewX(-20deg);
+        }
+        100% {
+            transform: translateX(150%) skewX(-20deg);
+        }
+    }
+
+    @keyframes iconFloat {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 60px;
+        width: 40%;
+        height: 3px;
+        background: linear-gradient(90deg, #3b82f6, transparent);
+        border-radius: 2px;
+        animation: widthGrow 0.6s ease-out 0.3s both;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes iconPop {
+        from {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @keyframes slideRight {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes widthGrow {
+        from {
+            width: 0;
+            opacity: 0;
+        }
+        to {
+            width: 40%;
+            opacity: 1;
+        }
+    }
+
+    .section-title .title-icon:hover {
+        transform: scale(1.05) rotate(5deg);
+        box-shadow: 0 6px 15px rgba(34, 197, 94, 0.3);
+    }
+
+    /* Common Button Styles */
+    .fancy-btn {
+        position: relative;
+        padding: 1.2rem 2.5rem;
+        font-size: 1.2rem;
+        font-weight: 500;
+        color: var(--primary);
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid rgba(0, 102, 255, 0.1);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 180px;
+    }
+
+    .fancy-btn i {
+        font-size: 1.3rem;
+    }
+
+    .fancy-btn:hover {
+        color: var(--primary-dark);
+        transform: translateY(-2px);
+        border-color: rgba(0, 102, 255, 0.2);
+        box-shadow: 0 6px 15px rgba(59, 130, 246, 0.2);
+    }
+
+    .fancy-btn:active {
+        transform: translateY(0);
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    @media (max-width: 640px) {
+        .header-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+        
+        .fancy-btn {
+            width: 100%;
+        }
+    }
+
+    /* Upload Button Styles */
+    .upload-btn {
+        composes: fancy-btn;
+        background-color: var(--primary);
+        color: #fff;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .upload-btn:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
+    }
+
+    .upload-btn:hover span,
+    .upload-btn:hover i {
+        color: #ffffff;
+    }
+
+    .upload-btn i {
+        margin-right: 0.5rem;
+    }
+
+    /* Delete Selected Button Styles */
+    .delete-selected-btn {
+        display: none;
+        background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+        color: white !important;
+        box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
+        transition: all 0.3s ease;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .delete-selected-btn.show {
+        display: inline-flex !important;
+    }
+
+    .delete-selected-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px -1px rgba(220, 38, 38, 0.3);
+    }
+
+    .delete-selected-btn i {
+        font-size: 1.1em;
+    }
+
+    /* Action Button Styles */
+    .action-btn {
+        composes: btn-base;
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        background: white;
+    }
+
+    .action-btn::before {
+        opacity: 0.05;
+    }
+
+    .action-btn:hover::before {
+        opacity: 0.1;
+    }
+
+    .view-btn {
+        color: #4f46e5;
+        box-shadow: 0 2px 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .view-btn:hover {
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+
+    .delete-btn {
+        color: #dc2626;
+        box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1);
+    }
+
+    .delete-btn:hover {
+        box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);
+    }
+
+    /* Delete Button Styles */
+    #deleteSelectedBtn {
+        transition: all 0.3s ease;
+    }
+
+    #deleteSelectedBtn.show {
+        display: inline-flex;
+    }
+
+    /* Delete Modal Styles */
+    .delete-confirm-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .delete-confirm-modal.active {
+        opacity: 1;
+    }
+
+    .delete-confirm-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(3px);
+    }
+
+    .delete-confirm-dialog {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90%;
+        max-width: 500px;
+        z-index: 1001;
+    }
+
+    .delete-confirm-content {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+    }
+
+    .delete-confirm-header {
+        padding: 20px;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+    }
+
+    .delete-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 15px;
+        background: #fff3f3;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .delete-icon-wrapper i {
+        font-size: 30px;
+        color: #dc3545;
+    }
+
+    .delete-confirm-header h3 {
+        margin: 0;
+        color: #333;
+        font-size: 1.5rem;
+    }
+
+    .delete-confirm-body {
+        padding: 20px;
+        text-align: center;
+    }
+
+    .file-to-delete {
+        margin: 15px auto;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .file-to-delete i {
+        color: #198754;
+        font-size: 1.2rem;
+    }
+
+    .delete-confirm-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #eee;
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .btn-cancel, .btn-confirm {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-cancel {
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .btn-cancel:hover {
+        background: #dee2e6;
+    }
+
+    .btn-confirm {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-confirm:hover {
+        background: #c82333;
+    }
+
+    .btn-cancel i, .btn-confirm i {
+        font-size: 0.9rem;
+    }
+
+    /* Action Links */
+    .action-link {
+        color: #6c757d;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        margin-left: 1rem;
+    }
+
+    .action-link:hover {
+        color: #0d6efd;
+    }
+
+    .action-link.text-danger:hover {
+        color: #dc3545;
+    }
+
+    /* Success Toast Styles */
+    .toast {
+        transition: all 0.3s ease;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    /* Checkbox Styles */
+    .custom-checkbox {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+        width: 20px;
+        height: 20px;
+    }
+
+    .custom-checkbox input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .checkmark {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 20px;
+        background-color: #fff;
+        border: 2px solid #dee2e6;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .custom-checkbox:hover .checkmark {
+        border-color: #0d6efd;
+    }
+
+    .custom-checkbox input:checked ~ .checkmark {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .checkmark:after {
+        content: "";
+        position: absolute;
+        display: none;
+        left: 6px;
+        top: 2px;
+        width: 5px;
+        height: 10px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+
+    .custom-checkbox input:checked ~ .checkmark:after {
+        display: block;
+    }
+
+    /* File Card Hover Effects */
+    .file-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .file-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15);
+    }
+
+    /* Header Actions Spacing */
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    /* File Actions Spacing */
+    .file-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+        justify-content: flex-end;
+        padding: 0.75rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    /* Search and Sort Styles */
+    .search-sort-container {
+        display: flex;
+        gap: 1rem;
+        margin: 1.5rem 0;
+        align-items: center;
+    }
+
+    .search-input-new {
+        flex: 1;
+        padding: 1.2rem 1.5rem;
+        font-size: 1.1rem;
+        color: var(--primary);
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid rgba(0, 102, 255, 0.1);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        -webkit-backpack-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        transition: all 0.3s ease;
+    }
+
+    .search-input-new:focus {
+        outline: none;
+        border-color: rgba(0, 102, 255, 0.2);
+        box-shadow: 0 6px 15px rgba(59, 130, 246, 0.2);
+    }
+
+    .search-input-new::placeholder {
+        color: rgba(0, 102, 255, 0.5);
+    }
+
+    .sort-dropdown {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        color: var(--primary);
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid rgba(0, 102, 255, 0.1);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        -webkit-backpack-filter: blur(10px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .sort-dropdown:focus {
+        outline: none;
+        border-color: rgba(0, 102, 255, 0.2);
+        box-shadow: 0 6px 15px rgba(59, 130, 246, 0.2);
+    }
+
+    @media (max-width: 640px) {
+        .search-sort-container {
+        flex-direction: column;
+            width: 100%;
+        }
+        
+        .search-input-new,
+        .sort-dropdown {
+            width: 100%;
+        }
+    }
+
+    /* Confirmation Modal Styles */
+    .confirmation-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .confirmation-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+    }
+
+    .confirmation-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-cancel, .btn-confirm {
+        padding: 0.5rem 1.5rem;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-cancel {
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    .btn-cancel:hover {
+        background: #dee2e6;
+    }
+
+    .btn-confirm {
+        background: #dc3545;
+        color: white;
+    }
+
+    .btn-confirm:hover {
+        background: #c82333;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<style>
+.files-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 102, 255, 0.1),
+                0 2px 4px -1px rgba(0, 102, 255, 0.05);
+    border: 2px solid rgba(0, 102, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backpack-filter: blur(10px);
+    position: relative; /* Ensures position relative for centering the child */
+    min-height: 600px;
+}
+
+    .files-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid rgba(0, 102, 255, 0.1);
+    }
+
+    .files-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .files-title i {
+        font-size: 1.75rem;
+        background: linear-gradient(135deg, var(--primary), var(--primary-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+    }
+
+    .delete-btn {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+
+    .delete-btn:hover {
+        background: rgba(239, 68, 68, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .select-btn {
+        background: rgba(0, 102, 255, 0.1);
+        color: var(--primary);
+    }
+
+    .select-btn:hover {
+        background: rgba(0, 102, 255, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .files-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .file-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0, 102, 255, 0.1);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        padding-right: 3.5rem;
+    }
+
+    .file-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15);
+        border-color: rgba(0, 102, 255, 0.2);
+    }
+
+    .file-icon-wrapper {
+        position: relative;
+        width: 60px;
+        height: 70px;
+        margin-right: 1rem;
+    }
+
+    .file-icon-bg {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .excel-icon {
+        font-size: 3.5rem;
+        color: #0D6CFD;
+        filter: drop-shadow(0 2px 4px rgba(13, 108, 253, 0.2));
+        transition: all 0.3s ease;
+    }
+
+    .file-icon-wrapper:hover .excel-icon {
+        transform: translateY(-2px);
+        filter: drop-shadow(0 4px 6px rgba(13, 108, 253, 0.3));
+    }
+
+    .file-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .file-main-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .file-details {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .file-name {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 1.1rem;
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+    }
+
+    .file-meta {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(0, 102, 255, 0.03);
+        border-radius: 10px;
+        border: 1px solid rgba(0, 102, 255, 0.08);
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+    .meta-item i {
+        width: 16px;
+        color: var(--primary);
+        font-size: 0.95rem;
+    }
+
+    .meta-label {
+        color: #94a3b8;
+        font-size: 0.85rem;
+    }
+
+    .meta-value {
+        color: #1e293b;
+        font-weight: 500;
+    }
+
+    .file-stats {
+        display: flex;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: linear-gradient(to right, rgba(29, 111, 66, 0.05), rgba(46, 132, 74, 0.05));
+        border-radius: 10px;
+        border: 1px solid rgba(29, 111, 66, 0.1);
+    }
+
+    .stat-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.5rem;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .stat-item:hover {
+        background: white;
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        color: #1D6F42;
+        font-size: 1.1rem;
+    }
+
+    .stat-value {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.95rem;
+    }
+
+    .stat-label {
+        color: #64748b;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .upload-time {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #64748b;
+        font-size: 0.9rem;
+        padding: 0.5rem 0.75rem;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .upload-time i {
+        color: var(--primary);
+    }
+
+    .file-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        padding: 1rem 0;
+        margin-top: 0.5rem;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        background: none;
+        line-height: 1;
+    }
+
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: currentColor;
+        opacity: 0.08;
+        transition: opacity 0.2s ease;
+        border-radius: inherit;
+    }
+
+    .action-btn:hover::before {
+        opacity: 0.15;
+    }
+
+    .action-btn:active::before {
+        opacity: 0.2;
+    }
+
+    .action-btn i {
+        font-size: 1rem;
+    }
+
+    .action-btn span {
+        font-size: 0.875rem;
+    }
+
+    .view-btn {
+        color: #3b82f6;
+    }
+
+    .delete-btn {
+        color: #dc2626;
+    }
+
+    /* Add subtle shadow on hover */
+    .action-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Press effect */
+    .action-btn:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    .custom-checkbox {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 2;
+    }
+
+    .custom-checkbox input[type="checkbox"] {
+        display: none;
+    }
+
+    .custom-checkbox label {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        cursor: pointer;
+        background: white;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .custom-checkbox label:hover {
+        border-color: var(--primary);
+        background: rgba(0, 102, 255, 0.05);
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked + label {
+        background: var(--primary);
+        border-color: var(--primary);
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked + label:after {
+        content: '\f00c';
+        font-family: 'Font Awesome 5 Free';
+        font-weight: 900;
+        color: white;
+        font-size: 0.8rem;
+    }
+
+    .selection-indicator {
+        position: absolute;
+        inset: 0;
+        border: 2px solid var(--primary);
+        border-radius: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .custom-checkbox input[type="checkbox"]:checked ~ .selection-indicator {
+        opacity: 1;
+    }
+
+    .file-card:hover .custom-checkbox label {
+        border-color: var(--primary);
+        background: rgba(0, 102, 255, 0.05);
+    }
+
+    .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    width: 100%;
+    min-height: 400px;
+
+    /* Center this within its container */
+    position: absolute;
+    top: 71%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+    .empty-state-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #1B73FB15, #1B73FB30);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        animation: pulseLight 2s infinite;
+    }
+
+    .empty-state-icon i {
+        font-size: 2.5rem;
+        color: #1B73FB;
+    }
+
+    .empty-state-title {
+        color: #2d3748;
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-state-text {
+        color: #64748b;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+        max-width: 400px;
+    }
+
+    .empty-state-button {
+        padding: 0.75rem 1.5rem;
+        background: #ffffff;
+        color: #1B73FB;
+        border: 2px solid #1B73FB;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .empty-state-button:hover {
+        background: #1B73FB;
+        color: #ffffff;
+        transform: translateY(-2px);
+    }
+
+    .empty-state-button i {
+        font-size: 1rem;
+    }
+
+    @keyframes pulseLight {
+        0% {
+            box-shadow: 0 0 0 0 rgba(27, 115, 251, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 20px rgba(27, 115, 251, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(27, 115, 251, 0);
+        }
+    }
+</style>
+
+<div class="files-container">
+    <form id="deleteSelectedForm" method="POST" action="{% url 'delete_multiple_excel' %}">
+        {% csrf_token %}
+    </form>
+
+<!-- Single Delete Modal -->
+<div id="singleDeleteModal" class="confirmation-modal">
+    <div class="confirmation-content">
+        <h3>Delete File</h3>
+        <p>Are you sure you want to delete <span id="deleteFileName" style="font-weight: 600;"></span>?</p>
+        <div class="confirmation-buttons">
+            <button type="button" class="btn-cancel">Cancel</button>
+            <button type="button" id="confirmSingleDelete" class="btn-confirm">Delete</button>
+        </div>
+    </div>
+</div>
+<!-- Bulk Delete Modal -->
+<div id="bulkDeleteModal" class="confirmation-modal">
+    <div class="confirmation-content">
+        <h3>Delete Multiple Files</h3>
+        <p>Are you sure you want to delete <span id="deleteFileCount">0</span> files?</p>
+        <div class="confirmation-buttons">
+            <button type="button" class="btn-cancel">Cancel</button>
+            <button type="button" class="btn-confirm" id="confirmBulkDelete">Delete Files</button>
+        </div>
+    </div>
+</div>
+    <div class="section-header">
+        <h2 class="section-title">
+            <span class="title-icon">
+                <i class="fas fa-file-excel"></i>
+            </span>
+            <span class="title-text">Excel Files</span>
+        </h2>
+        <div class="header-actions">
+            <a href="{% url 'upload_excel' %}" class="fancy-btn upload-btn">
+                <i class="fas fa-upload"></i>
+                <span>New File</span>
+            </a>
+            {% if excel_files %}
+            <button id="selectAllBtn" class="fancy-btn">
+                <i class="fas fa-check-double"></i> Select All
+            </button>
+            <button type="button" 
+                    class="fancy-btn delete-selected-btn" 
+                    id="deleteSelectedBtn" 
+                    style="display: none;"
+                    data-bs-toggle="modal" 
+                    data-bs-target="#deleteModal">
+                <i class="fas fa-trash-alt"></i>
+                <span>Delete Selected</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <style>
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+    </style>
+
+    {% if excel_files %}
+<!-- Search and Sort Container -->
+<div class="search-sort-container">
+    <input 
+        type="search" 
+        id="searchInput" 
+        class="search-input-new" 
+        placeholder="Search files..." 
+        autocomplete="off"
+        aria-label="Search files"
+    />
+    <form method="get" class="sort-form">
+        <select name="sort" onchange="this.form.submit()" class="sort-dropdown">
+            <option value="name_asc" {% if request.GET.sort == 'name_asc' %}selected{% endif %}>Name (A-Z)</option>
+            <option value="name_desc" {% if request.GET.sort == 'name_desc' %}selected{% endif %}>Name (Z-A)</option>
+            <option value="date_asc" {% if request.GET.sort == 'date_asc' %}selected{% endif %}>Date (Oldest)</option>
+            <option value="date_desc" {% if request.GET.sort == 'date_desc' %}selected{% endif %}>Date (Newest)</option>
+            <option value="size_asc" {% if request.GET.sort == 'size_asc' %}selected{% endif %}>Size (Smallest)</option>
+            <option value="size_desc" {% if request.GET.sort == 'size_desc' %}selected{% endif %}>Size (Largest)</option>
+        </select>
+    </form>
+</div>
+    <style>
+        /* Modern Sort Container Styles */
+        .search-sort-container {
+            display: flex;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+            align-items: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .sort-form {
+            position: relative;
+            min-width: 220px;
+            flex-shrink: 0;
+        }
+
+        .sort-form::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            background: linear-gradient(45deg, #1B73FB, #45a6ff);
+            border-radius: 15px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sort-form:hover::after {
+            opacity: 0.1;
+        }
+
+        .sort-dropdown {
+            width: 100%;
+            padding: 1rem 3rem 1rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #1a202c;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%231B73FB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.2em;
+            box-shadow: 0 2px 4px rgba(27, 115, 251, 0.05);
+        }
+
+        .sort-dropdown:hover {
+            border-color: #1B73FB;
+            background: linear-gradient(to bottom right, #ffffff, #f8faff);
+            box-shadow: 0 4px 12px rgba(27, 115, 251, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .sort-dropdown:focus {
+            outline: none;
+            border-color: #1B73FB;
+            box-shadow: 0 0 0 4px rgba(27, 115, 251, 0.15);
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .sort-dropdown option {
+            padding: 1rem;
+            font-weight: 500;
+            background: white;
+            color: #1a202c;
+        }
+
+        /* Modern Search Input Styles */
+        .search-input-new {
+            flex: 1;
+            min-width: 250px;
+            padding: 1rem 1.5rem;
+            font-size: 0.95rem;
+            color: #1a202c;
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(27, 115, 251, 0.05);
+        }
+
+        .search-input-new:hover {
+            border-color: #1B73FB;
+            background: linear-gradient(to bottom right, #ffffff, #f8faff);
+            box-shadow: 0 4px 12px rgba(27, 115, 251, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .search-input-new:focus {
+            outline: none;
+            border-color: #1B73FB;
+            box-shadow: 0 0 0 4px rgba(27, 115, 251, 0.15);
+            background: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .search-input-new::placeholder {
+            color: #94a3b8;
+            transition: color 0.2s ease;
+        }
+
+        .search-input-new:focus::placeholder {
+            color: #1B73FB;
+        }
+
+        /* Shimmer Effect */
+        @keyframes shimmer {
+            0% {
+                background-position: -200% center;
+            }
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        .sort-dropdown, .search-input-new {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sort-dropdown::before, .search-input-new::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(27, 115, 251, 0.05),
+                transparent
+            );
+            background-size: 200% 100%;
+            animation: shimmer 3s infinite linear;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sort-dropdown:hover::before, .search-input-new:hover::before {
+            opacity: 1;
+        }
+
+        @media (max-width: 640px) {
+            .search-sort-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .search-input-new,
+            .sort-form {
+                width: 100%;
+            }
+
+            .sort-dropdown {
+                width: 100%;
+            }
+        }
+
+        /* Pulse Animation for Focus */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(27, 115, 251, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(27, 115, 251, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(27, 115, 251, 0);
+            }
+        }
+
+        .sort-dropdown:focus, .search-input-new:focus {
+            animation: pulse 2s infinite;
+        }
+    </style>
+    <div class="files-grid">
+        {% for file in excel_files %}
+        <div class="file-card" id="file-card-{{ file.id }}" data-file-id="{{ file.id }}" data-file-name="{{ file.file_name }}">
+            <div class="custom-checkbox">
+                <input type="checkbox" id="file-{{ file.id }}" class="file-checkbox" value="{{ file.id }}" data-filename="{{ file.file_name }}">
+                <label for="file-{{ file.id }}" class="checkbox-label">
+                    <div class="selection-indicator"></div>
+                </label>
+            </div>
+            <div class="file-content">
+                <div class="file-main-info">
+                    <div class="file-icon-wrapper">
+                        <div class="file-icon-bg">
+                            <i class="fa-solid fa-file-excel excel-icon"></i>
+                        </div>
+                    </div>
+                    <div class="file-details">
+                        <div class="file-name">{{ file.file_name }}</div>
+                        <div class="upload-time">
+                            <i class="fas fa-clock"></i>
+                            Uploaded on {{ file.uploaded_at|date:"Y-m-d" }} at {{ file.uploaded_at|time:"H:i:s" }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="file-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-file-arrow-down"></i>
+                        <div>
+                            <div class="meta-label">Size</div>
+                            <div class="meta-value">{{ file.get_file_size_display }}</div>
+                        </div>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-table"></i>
+                        <div>
+                            <div class="meta-label">Sheet Size</div>
+                            <div class="meta-value">{{ file.rows_count }}×{{ file.columns_count }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="file-stats">
+                    <div class="stat-item">
+                        <i class="fas fa-table stat-icon"></i>
+                        <span class="stat-value">{{ file.rows_count }}</span>
+                        <span class="stat-label">Rows</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-columns stat-icon"></i>
+                        <span class="stat-value">{{ file.columns_count }}</span>
+                        <span class="stat-label">Columns</span>
+                    </div>
+                    <div class="stat-item">
+                        <i class="fas fa-chart-column stat-icon"></i>
+                        <span class="stat-value">{{ file.rows_count }} × {{ file.columns_count }}</span>
+                        <span class="stat-label">Cells</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="file-actions">
+                <div class="action-buttons">
+                    <a href="{% url 'visualize_page' file.id %}" class="action-btn view-btn">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Visualize</span>
+                    </a>
+                    <form method="POST" class="delete-form">
+                        {% csrf_token %}
+                        <button type="button" class="action-btn delete-btn single-delete-btn" 
+                                onclick="showSingleDeleteConfirmation('{{ file.id }}', '{{ file.file_name }}')">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>Delete</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if excel_files %}
+    <div class="pagination-info">
+        Showing {{ excel_files.start_index }} to {{ excel_files.end_index }} of {{ page_obj.paginator.count }} entries
+    </div>
+
+    <div class="pagination-container">
+        {% if page_obj.has_other_pages %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-arrow prev" aria-label="Previous page">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            {% else %}
+                <span class="pagination-arrow prev disabled">
+                    <i class="fas fa-chevron-left"></i>
+                </span>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <span class="pagination-number active">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <a href="?page={{ num }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-number">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}" class="pagination-arrow next" aria-label="Next page">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            {% else %}
+                <span class="pagination-arrow next disabled">
+                    <i class="fas fa-chevron-right"></i>
+                </span>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <style>
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
+            padding: 1rem;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(27, 115, 251, 0.1);
+            border: 2px solid rgba(27, 115, 251, 0.1);
+        }
+
+        .pagination-number,
+        .pagination-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0 0.5rem;
+            border-radius: 8px;
+            color: #1B73FB;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pagination-number::before,
+        .pagination-arrow::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(27, 115, 251, 0.1);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+
+        .pagination-number:hover::before,
+        .pagination-arrow:hover::before {
+            width: 150%;
+            height: 150%;
+        }
+
+        .pagination-number.active {
+            background: #1B73FB;
+            color: white;
+            font-weight: 600;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(27, 115, 251, 0.2);
+        }
+
+        .pagination-arrow {
+            font-size: 1rem;
+        }
+
+        .pagination-arrow.disabled {
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination-arrow:not(.disabled):hover {
+            background: rgba(27, 115, 251, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .pagination-number:not(.active):hover {
+            background: rgba(27, 115, 251, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Hover animations */
+        @keyframes pulseScale {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .pagination-number.active {
+            animation: pulseScale 2s infinite;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 640px) {
+            .pagination {
+                gap: 0.25rem;
+                padding: 0.25rem;
+            }
+
+            .pagination-number,
+            .pagination-arrow {
+                min-width: 35px;
+                height: 35px;
+                font-size: 0.9rem;
+            }
+        }
+
+        .pagination-info {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 2rem 0 1rem;
+            text-align: left;
+            padding-left: 0.5rem;
+        }
+    </style>
+
+    <script>
+        let currentFileId = null;
+        let currentFileName = null;
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const fileCards = document.querySelectorAll('.file-card');
+        const filesGrid = document.querySelector('.files-grid');
+        let noResultsDiv = null;
+        const paginationContainer = document.querySelector('.pagination-container');
+        const paginationInfo = document.querySelector('.pagination-info');
+
+        // Create and style the "No results found" message
+        function createNoResultsMessage() {
+            const div = document.createElement('div');
+            div.className = 'empty-state';
+            div.innerHTML = `
+                <div class="empty-state-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h2 class="empty-state-title">No matching files found</h2>
+                <p class="empty-state-text">Try adjusting your search term or clear the search to see all files</p>
+                <button onclick="clearSearch()" class="empty-state-button">
+                    <i class="fas fa-times"></i> Clear Search
+                </button>
+            `;
+            return div;
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.value = '';
+            performSearch('');
+            searchInput.focus();
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function performSearch(searchTerm) {
+            let hasResults = false;
+            searchTerm = searchTerm.toLowerCase().trim();
+
+            // Remove existing no results message if it exists
+            if (noResultsDiv) {
+                noResultsDiv.remove();
+                noResultsDiv = null;
+            }
+
+            fileCards.forEach(card => {
+                const fileName = card.getAttribute('data-file-name').toLowerCase();
+                const matches = fileName.includes(searchTerm);
+                
+                if (matches) {
+                    hasResults = true;
+                    if (card.style.display === 'none') {
+                        card.style.display = '';
+                        card.style.animation = 'fadeInScale 0.3s ease-out';
+                    }
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Show/hide pagination based on results
+            if (paginationContainer) {
+                paginationContainer.style.display = hasResults ? '' : 'none';
+            }
+            if (paginationInfo) {
+                paginationInfo.style.display = hasResults ? '' : 'none';
+            }
+
+            // Show no results message if needed
+            if (!hasResults && searchTerm !== '') {
+                if (!noResultsDiv) {
+                    noResultsDiv = createNoResultsMessage();
+                    filesGrid.appendChild(noResultsDiv);
+                    
+                    // Add fade-in animation
+                    noResultsDiv.style.animation = 'fadeIn 0.3s ease-out';
+                }
+            }
+        }
+
+        // Add these new animations to your style section
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInScale {
+                from {
+                    opacity: 0;
+                    transform: scale(0.95);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            .search-input-new::-webkit-search-cancel-button {
+                -webkit-appearance: none;
+                height: 24px;
+                width: 24px;
+                margin-left: 0.4em;
+                background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%231B73FB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E") center/contain no-repeat;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+            }
+
+            .search-input-new::-webkit-search-cancel-button:hover {
+                transform: scale(1.1);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Attach the debounced search handler to the input
+        const debouncedSearch = debounce((e) => performSearch(e.target.value), 300);
+        searchInput.addEventListener('input', debouncedSearch);
+
+        // Clear search when the input is cleared
+        searchInput.addEventListener('search', function(e) {
+            if (this.value === '') {
+                performSearch('');
+            }
+        });
+
+        function showDeleteConfirmation(fileId, fileName) {
+            console.log('Opening delete modal for:', fileId, fileName);
+            currentFileId = fileId;
+            currentFileName = fileName;
+            document.getElementById('fileNameToDelete').textContent = fileName;
+            document.getElementById('deleteConfirmationModal').style.display = 'flex';
+        }
+
+        function hideDeleteConfirmation() {
+            console.log('Hiding delete modal');
+            document.getElementById('deleteConfirmationModal').style.display = 'none';
+        }
+
+        function confirmDelete() {
+            console.log('Confirm delete clicked');
+            if (currentFileId) {
+                if (Array.isArray(currentFileId)) {
+                    // Bulk delete
+                    const formData = new FormData();
+                    formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+                    currentFileId.forEach(id => {
+                        formData.append('selected_files', id);
+                    });
+
+                    fetch('{% url "delete_multiple_excel" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Bulk delete response:', data);
+                        if (data.status === 'success') {
+                            currentFileId.forEach(id => {
+                                const fileCard = document.getElementById(`file-card-${id}`);
+                                if (fileCard) {
+                                    fileCard.style.opacity = '0';
+                                    setTimeout(() => {
+                                        fileCard.remove();
+                                        if (document.querySelectorAll('.file-card').length === 0) {
+                                            showEmptyState();
+                                        }
+                                    }, 300);
+                                }
+                            });
+                            showSuccessMessage('Selected files deleted successfully.');
+                            deleteSelectedBtn.style.display = 'none';
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 500);
+                        } else {
+                            throw new Error(data.message || 'Error deleting files');
+                        }
+                        hideDeleteConfirmation();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showErrorMessage('Error deleting files. Please try again.');
+                        hideDeleteConfirmation();
+                    });
+                } else {
+                    // Single file delete
+                    fetch(`/delete-file/${currentFileId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    })
+                    .then(response => {
+                        console.log('Server response:', response.status);
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Delete response:', data);
+                        if (data.status === 'success') {
+                            // Check if backend indicates all files were deleted
+                            if (data.all_deleted) {
+                                // Force a complete page reload
+                                window.location = window.location.pathname;
+                                return;
+                            }
+                            
+                            // Remove deleted files from DOM
+                            data.deleted_ids.forEach(fileId => {
+                                const fileCard = document.getElementById(`file-card-${fileId}`);
+                                if (fileCard) {
+                                    fileCard.remove();
+                                }
+                            });
+                            selectedFiles.clear();
+                            updateDeleteSelectedButton();
+                            showSuccessMessage(data.message);
+                        } else {
+                            showErrorMessage(data.message || 'Error deleting file');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showErrorMessage('Error deleting file. Please try again.');
+                    });
+
+                    hideDeleteModal('bulkDeleteModal');
+                }
+            }
+        }
+
+        // Add this function to handle CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showSuccessMessage(message) {
+            if (window.messageShown) {
+                return;
+            }
+            const successMessage = document.getElementById('successMessage');
+            const messageText = successMessage.querySelector('.message-text');
+            messageText.textContent = message;
+            successMessage.style.display = 'block';
+            window.messageShown = true;
+
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+                window.messageShown = false;
+            }, 3000);
+        }
+    </script>
+
+    <script>
+        let allFileIds = [];
+        let selectedFiles = new Set();
+        let isAllSelected = false;
+        
+        // Function to get all file IDs
+        async function getAllFileIds() {
+            try {
+                const sortParam = new URLSearchParams(window.location.search).get('sort') || 'date_desc';
+                const response = await fetch(`/get-all-file-ids/?sort=${sortParam}`);
+                const data = await response.json();
+                allFileIds = data.file_ids;
+            } catch (error) {
+                console.error('Error fetching file IDs:', error);
+            }
+        }
+
+        // Initialize by getting all file IDs
+        getAllFileIds();
+
+        // Select all button handler
+        document.getElementById('selectAllBtn').addEventListener('click', async function() {
+            console.log('Select all button clicked');
+            isAllSelected = !isAllSelected;
+            
+            if (isAllSelected) {
+                // First time selecting all, fetch IDs if not already done
+                if (allFileIds.length === 0) {
+                    await getAllFileIds();
+                }
+                
+                // Add all file IDs to selected set
+                allFileIds.forEach(id => selectedFiles.add(id));
+                
+                // Check all visible checkboxes
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    checkbox.checked = true;
+                    const fileCard = document.getElementById(`file-card-${checkbox.value}`);
+                    if (fileCard) {
+                        fileCard.classList.add('selected');
+                    }
+                });
+                
+                // Update button text and icon
+                this.innerHTML = '<i class="fas fa-times-circle"></i> Unselect All';
+            } else {
+                // Uncheck all and clear selections
+                selectedFiles.clear();
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                    const fileCard = document.getElementById(`file-card-${checkbox.value}`);
+                    if (fileCard) {
+                        fileCard.classList.remove('selected');
+                    }
+                });
+                
+                // Update button text and icon
+                this.innerHTML = '<i class="fas fa-check-double"></i> Select All';
+            }
+            
+            updateDeleteSelectedButton();
+        });
+
+        // Individual checkbox handler
+        document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function(e) {
+                const fileId = parseInt(this.value);
+                const fileCard = document.getElementById(`file-card-${fileId}`);
+                
+                if (this.checked) {
+                    selectedFiles.add(fileId);
+                    if (fileCard) fileCard.classList.add('selected');
+                } else {
+                    selectedFiles.delete(fileId);
+                    if (fileCard) fileCard.classList.remove('selected');
+                    // Reset select all state and button
+                    isAllSelected = false;
+                    const selectAllBtn = document.getElementById('selectAllBtn');
+                    selectAllBtn.innerHTML = '<i class="fas fa-check-double"></i> Select All';
+                }
+                
+                updateDeleteSelectedButton();
+            });
+        });
+
+        // Update the updateDeleteSelectedButton function
+        function updateDeleteSelectedButton() {
+            const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+            if (selectedFiles.size > 0) {
+                deleteSelectedBtn.style.display = 'inline-flex';
+                deleteSelectedBtn.querySelector('span').textContent = `Delete Selected (${selectedFiles.size})`;
+            } else {
+                deleteSelectedBtn.style.display = 'none';
+            }
+        }
+    </script>
+
+    <script>
+        // Function to refresh the files grid after deletion
+        function refreshFilesGrid() {
+            const currentPage = new URLSearchParams(window.location.search).get('page') || '1';
+            const currentSort = new URLSearchParams(window.location.search).get('sort') || 'date_desc';
+            
+            fetch(`?page=${currentPage}&sort=${currentSort}`)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newFilesGrid = doc.querySelector('.files-grid');
+                    const currentFilesGrid = document.querySelector('.files-grid');
+                    
+                    if (newFilesGrid && currentFilesGrid) {
+                        // Keep the fade-out animation of deleted files
+                        const deletedCards = document.querySelectorAll('.file-card[style*="opacity: 0"]');
+                        deletedCards.forEach(card => card.remove());
+                        
+                        // Replace the grid content
+                        currentFilesGrid.innerHTML = newFilesGrid.innerHTML;
+                        
+                        // Reinitialize event listeners for new cards
+                        initializeFileCards();
+                    }
+                })
+                .catch(error => console.error('Error refreshing grid:', error));
+        }
+
+        // Initialize event listeners for file cards
+        function initializeFileCards() {
+            document.querySelectorAll('.file-card').forEach(card => {
+                const checkbox = card.querySelector('.custom-checkbox input');
+                if (checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked) {
+                            selectedFiles.add(card.dataset.fileId);
+                        } else {
+                            selectedFiles.delete(card.dataset.fileId);
+                        }
+                        updateDeleteSelectedButton();
+                    });
+                }
+            });
+        }
+
+        // Call once on page load
+        initializeFileCards();
+    </script>
+
+    <script>
+        function showBulkDeleteConfirmation() {
+            console.log('Showing bulk delete confirmation');
+            if (selectedFiles.size === 0) {
+                showErrorMessage('Please select files to delete');
+                return;
+            }
+
+            const modal = document.getElementById('bulkDeleteModal');
+            const fileCountElement = document.getElementById('deleteFileCount');
+            fileCountElement.textContent = selectedFiles.size;
+            modal.style.display = 'flex';
+        }
+
+        // Function to handle bulk delete
+        async function deleteBulkFiles() {
+            const csrftoken = getCookie('csrftoken');
+            
+            fetch('/delete-multiple/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({
+                    file_ids: Array.from(selectedFiles)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Hide the modal first
+                    hideDeleteModal('bulkDeleteModal');
+
+                    if (data.all_deleted) {
+                        // If all files were deleted, show message and reload
+                        setTimeout(() => {
+                            window.location = window.location.pathname;
+                        }, 300);
+                        return;
+                    }
+
+                    // Apply fade-out animation to each selected file
+                    selectedFiles.forEach(fileId => {
+                        const fileCard = document.getElementById(`file-card-${fileId}`);
+                        if (fileCard) {
+                            fileCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                            fileCard.style.opacity = '0';
+                            fileCard.style.transform = 'scale(0.9)';
+                        }
+                    });
+
+                    // After animation, refresh the grid
+                    setTimeout(() => {
+                        refreshFilesGrid();
+                        selectedFiles.clear();
+                        updateDeleteSelectedButton();
+                        showSuccessMessage(data.message);
+                    }, 300);
+                } else {
+                    showErrorMessage(data.message || 'Error deleting files');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showErrorMessage('Error deleting files. Please try again.');
+            });
+        }
+    </script>
+
+    <script>
+        // Delete selected button click handler
+        document.getElementById('deleteSelectedBtn').addEventListener('click', function(e) {
+            console.log('Delete selected button clicked');
+            e.preventDefault();
+            showBulkDeleteConfirmation();
+        });
+
+        // Add click handler for bulk delete confirmation button
+        document.getElementById('confirmBulkDelete').addEventListener('click', function(e) {
+            console.log('Bulk delete confirmation button clicked');
+            e.preventDefault();
+            deleteBulkFiles();
+        });
+    </script>
+
+    <script>
+        // Function to hide modal
+        function hideDeleteModal(modalId) {
+            console.log('Hiding modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Add click handler for cancel buttons
+        document.querySelectorAll('.btn-cancel').forEach(button => {
+            button.addEventListener('click', function(e) {
+                console.log('Cancel button clicked');
+                e.preventDefault();
+                e.stopPropagation();
+                const modalId = this.closest('.confirmation-modal').id;
+                hideDeleteModal(modalId);
+            });
+        });
+        
+    </script>
+
+    <style>
+        .confirmation-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .confirmation-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .confirmation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn-cancel, .btn-confirm {
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-cancel {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-cancel:hover {
+            background: #dee2e6;
+        }
+
+        .btn-confirm {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background: #c82333;
+        }
+    </style>
+    <script>
+        function showSingleDeleteConfirmation(fileId, fileName) {
+            console.log('Opening delete modal for:', fileId, fileName);
+            const modal = document.getElementById('singleDeleteModal');
+            const fileNameElement = document.getElementById('deleteFileName');
+            
+            if (modal && fileNameElement) {
+                fileNameElement.textContent = fileName;
+                modal.style.display = 'flex';
+                modal.dataset.fileId = fileId;
+                
+                // Store file info for deletion
+                modal.dataset.fileId = fileId;
+                modal.dataset.fileName = fileName;
+                
+                // Remove any existing event listeners
+                const confirmButton = document.getElementById('confirmSingleDelete');
+                const cancelButton = modal.querySelector('.btn-cancel');
+                
+                if (confirmButton) {
+                    console.log('Setting up confirm button for:', fileId);
+                    const newConfirmButton = confirmButton.cloneNode(true);
+                    confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+                    newConfirmButton.addEventListener('click', function(e) {
+                        console.log('Confirm delete clicked for:', fileId);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteSingleFile(fileId);
+                    });
+                }
+
+                if (cancelButton) {
+                    const newCancelButton = cancelButton.cloneNode(true);
+                    cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+                    newCancelButton.addEventListener('click', function(e) {
+                        console.log('Cancel clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        hideDeleteModal('singleDeleteModal');
+                    });
+                }
+            }
+        }
+
+        function hideDeleteModal(modalId) {
+            console.log('Hiding modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+function deleteSingleFile(fileId) {
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/delete-file/${fileId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Hide the modal
+            hideDeleteModal('singleDeleteModal');
+            
+            if (data.all_deleted) {
+                // If this was the last file, reload the page
+                window.location = window.location.pathname;
+                return;
+            }
+            
+            // Otherwise, remove the file card with animation
+            const fileCard = document.querySelector(`#file-card-${fileId}`);
+            if (fileCard) {
+                fileCard.style.opacity = '0';
+                fileCard.style.transform = 'scale(0.9)';
+                
+                // Remove the card after animation completes
+                setTimeout(() => {
+                    fileCard.remove();
+                    refreshFilesGrid();
+                    showSuccessMessage(data.message);
+                }, 300);
+            }
+        } else {
+            showErrorMessage(data.message || 'Error deleting file');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showErrorMessage('Error deleting file. Please try again.');
+    });
+
+    // Hide the confirmation modal
+    hideDeleteModal('singleDeleteModal');
+}
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="fas fa-file-excel"></i>
+        </div>
+        <h3>No Excel Files Yet</h3>
+        <p>No Excel files found in the system.</p>
+    </div>
+{% endif %}
+</div>
+{% endblock %}
