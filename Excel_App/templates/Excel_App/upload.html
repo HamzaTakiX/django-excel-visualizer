@@ -307,9 +307,39 @@
             transform: scale(1);
         }
     }
+
+    /* Add notification styles */
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        color: white;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        max-width: 350px;
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .notification.error {
+        background: linear-gradient(45deg, #ff416c, #ff4b2b);
+    }
+
+    .notification.success {
+        background: linear-gradient(45deg, #00b09b, #96c93d);
+    }
 </style>
 
 <div class="upload-container">
+    <!-- Add notification container -->
+    <div id="notification" class="notification"></div>
     <div class="steps-container">
         <h2 class="steps-title">How It Works</h2>
         <div class="steps-grid">
@@ -354,9 +384,9 @@
             <i class="fas fa-cloud-upload-alt upload-icon"></i>
             <h3 class="upload-title">Drag & Drop Excel Files Here</h3>
             <p class="upload-text">or</p>
-            <input type="file" name="excel_file" id="fileElem" accept=".xlsx, .xls" style="display:none" multiple>
+            <input type="file" name="excel_file" id="fileElem" accept=".xlsx, .xls, .csv" style="display:none" multiple>
             <button type="button" class="browse-btn" id="browseBtn">Browse Files</button>
-            <p class="upload-text mt-2">Supports: .xlsx, .xls</p>
+            <p class="upload-text mt-2">Supports: .xlsx, .xls, .csv</p>
         </div>
 
         <div id="fileList" class="file-info" style="display: none;">
@@ -441,33 +471,60 @@
         }
 
         function handleFiles(files) {
-            if (!files) return;
+            const validFiles = [];
+            const invalidFiles = [];
             
-            // Add new files to the Set
             Array.from(files).forEach(file => {
-                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                    // Check if file with same name already exists
-                    let exists = false;
-                    selectedFiles.forEach(existingFile => {
-                        if (existingFile.name === file.name) {
-                            exists = true;
-                        }
-                    });
-                    if (!exists) {
-                        selectedFiles.add(file);
-                    }
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                if (['xlsx', 'xls', 'csv'].includes(fileExt)) {
+                    validFiles.push(file);
+                } else {
+                    invalidFiles.push(file.name);
+                }
+            });
+
+            if (invalidFiles.length > 0) {
+                showNotification(`Please upload only Excel files (.xlsx, .xls, .csv). Invalid files: ${invalidFiles.join(', ')}`, 'error');
+                return;
+            }
+
+            validFiles.forEach(file => {
+                if (!Array.from(selectedFiles).some(f => f.name === file.name)) {
+                    selectedFiles.add(file);
                 }
             });
 
             updateFileList();
-
-            // Update the file input's files
-            const dataTransfer = new DataTransfer();
-            selectedFiles.forEach(file => {
-                dataTransfer.items.add(file);
-            });
-            fileInput.files = dataTransfer.files;
+            if (selectedFiles.size > 0) {
+                uploadBtn.style.display = 'block';
+            }
         }
+
+        function showNotification(message, type = 'error') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+
+        // Make the entire upload area clickable
+        dropArea.addEventListener('click', (e) => {
+            if (e.target !== browseBtn) {
+                fileElem.click();
+            }
+        });
+
+        // Add form submission handler
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            if (selectedFiles.size === 0) {
+                e.preventDefault();
+                showNotification('Please select at least one Excel file to upload', 'error');
+            }
+        });
 
         // Event listeners
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -484,7 +541,7 @@
 
         dropArea.addEventListener('drop', handleDrop, false);
         fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-        browseBtn.addEventListener('click', () => fileInput.click());
+        browseBtn.addEventListener('click', () => fileElem.click());
 
         // Get the form element
         const uploadForm = document.getElementById('uploadForm');

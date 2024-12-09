@@ -220,7 +220,7 @@
 
     .form-control:focus, .form-select:focus {
         border-color: var(--main-color);
-        box-shadow: 0 0 0 3px rgba(27, 115, 251, 0.1);
+        box-shadow: 0 0 0 0.25rem rgba(27, 115, 251, 0.25);
     }
 
     /* File Icon Animation */
@@ -2296,7 +2296,7 @@
                 <div class="info-card last-update">
                     <div class="update-badge">Last Edit</div>
                     <div class="info-label">Last Modified</div>
-                    <div id="lastModified" class="info-value">{{ data.last_modified|default:"No edits yet" }}</div>
+                    <div id="lastModified" class="info-value">{{ data.last_modified|default:"File not updated yet" }}</div>
                     <i class="fas fa-history info-icon"></i>
                 </div>
             </div>
@@ -2937,6 +2937,14 @@
                         console.log('Save successful:', data);
                         showToast('success', 'Changes saved successfully');
                         
+                        // Update last modified time if provided
+                        if (data.last_modified) {
+                            const lastModifiedElement = document.getElementById('lastModified');
+                            if (lastModifiedElement) {
+                                lastModifiedElement.textContent = data.last_modified;
+                            }
+                        }
+                        
                         // Reset edit state
                         cells.forEach(cell => {
                             cell.contentEditable = 'false';
@@ -2951,8 +2959,7 @@
                         downloadFormat.classList.remove('hidden');
                     })
                     .catch(error => {
-                        console.error('Save error:', error);
-                        showToast('error', error.message || 'Failed to save changes');
+                        showToast('error', error.message);
                     });
                 });
 
@@ -3140,9 +3147,11 @@
                     } catch (error) {
                         showToast('error', error.message);
                     } finally {
-                        // Always remove calculating state and re-enable button
-                        this.classList.remove('calculating');
-                        this.disabled = false;
+                        // Always remove calculating state and re-enable button after slight delay
+                        setTimeout(() => {
+                            this.classList.remove('calculating');
+                            this.disabled = false;
+                        }, 500);
                     }
                 });
 
@@ -3279,43 +3288,69 @@
                     }, 500);
                 });
 
-                // Add download functionality for statistics table
+                // Download button click handler for Statistics Overview table
                 const downloadStatsBtn = document.getElementById('downloadStatsBtn');
-                const statsFormat = document.getElementById('statsFormat');
-                
-                if (downloadStatsBtn && statsFormat) {
+                if (downloadStatsBtn) {
                     downloadStatsBtn.addEventListener('click', function() {
-                        const format = statsFormat.value;
-                        const statisticsTable = document.querySelector('.statistics-table');
+                        const format = document.getElementById('statsFormat').value;
+                        const statsTable = document.querySelector('.statistics-table');
                         
-                        if (!statisticsTable) {
+                        if (!statsTable) {
                             showToast('error', 'Statistics table not found');
                             return;
                         }
                         
-                        // Convert table to worksheet data
-                        const rows = Array.from(statisticsTable.querySelectorAll('tr'));
-                        const data = rows.map(row => 
-                            Array.from(row.cells).map(cell => cell.textContent.trim())
-                        );
-                        
-                        // Create a temporary table with the data
-                        const tempTable = document.createElement('table');
-                        data.forEach(rowData => {
-                            const row = document.createElement('tr');
-                            rowData.forEach(cellData => {
-                                const cell = document.createElement('td');
-                                cell.textContent = cellData;
-                                row.appendChild(cell);
-                            });
-                            tempTable.appendChild(row);
+                        // Extract table data
+                        const headers = Array.from(statsTable.querySelectorAll('thead th')).map(th => th.textContent.trim());
+                        const rows = Array.from(statsTable.querySelectorAll('tbody tr')).map(row => {
+                            return Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim());
                         });
                         
-                        // Use the existing download endpoint
-                        window.location.href = `/download/${fileIndex}/?format=${format}`;
-                        
-                        // Show success message
-                        showToast('success', `Statistics table is being downloaded as ${format.toUpperCase()}`);
+                        // Convert to CSV or other formats as needed
+                        let content, mimeType;
+                        if (format === 'csv') {
+                            content = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                            mimeType = 'text/csv;charset=utf-8;';
+                        } else if (format === 'xlsx') {
+                            // Use a library like SheetJS to handle XLSX conversion
+                            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+                            const workbook = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(workbook, worksheet, 'Statistics');
+                            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                            content = new Blob([wbout], { type: 'application/octet-stream' });
+                            mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+                        } else if (format === 'xls') {
+                            console.log('Selected format:', format);
+                            console.log('Headers:', headers);
+                            console.log('Rows:', rows);
+                            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+                            const workbook = XLSX.utils.book_new();
+                            XLSX.utils.book_append_sheet(workbook, worksheet, 'Statistics');
+                            const wbout = XLSX.write(workbook, { bookType: 'xls', type: 'array' });
+                            content = new Blob([wbout], { type: 'application/octet-stream' });
+                            mimeType = 'application/vnd.ms-excel';
+                        } else if (format === 'txt') {
+                            content = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+                            mimeType = 'text/plain;charset=utf-8;';
+                        } else if (format === 'json') {
+                            content = JSON.stringify(rows.map(row => Object.fromEntries(row.map((value, index) => [headers[index], value]))), null, 2);
+                            mimeType = 'application/json;charset=utf-8;';
+                        } else {
+                            showToast('error', 'Unsupported format');
+                            return;
+                        }
+
+                        console.log('Content prepared for download');
+
+                        // Download the file
+                        const blob = new Blob([content], { type: mimeType });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `statistics_overview.${format}`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        showToast('success', `Statistics Overview table is being downloaded as ${format.toUpperCase()}`);
                     });
                 }
 
@@ -3345,12 +3380,13 @@
                         toastBody.textContent = message;
                     }
                     
-                    // Show toast using Bootstrap
+                    // Initialize toast with longer duration (5 seconds instead of default)
                     const bsToast = new bootstrap.Toast(toast, {
                         animation: true,
                         autohide: true,
-                        delay: 3000
+                        delay: 5000  // Show for 5 seconds
                     });
+                    
                     bsToast.show();
                 }
 
@@ -3395,16 +3431,24 @@
 
                     // Prepare data for saving
                     const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    const data = rows.map(row => {
+                    const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
+                    
+                    // Create data array in the format the server expects
+                    const data = [];
+                    rows.forEach(row => {
                         const rowData = {};
                         headers.forEach((header, index) => {
                             rowData[header] = row.cells[index].textContent.trim();
                         });
-                        return rowData;
+                        data.push(rowData);
                     });
-
-                    // Save changes
+                    
+                    console.log('Sending data to server:', data);
+                    
+                    // Show saving indicator
+                    showToast('info', 'Saving changes...');
+                    
+                    // Send to server
                     fetch(`/save_changes/${fileIndex}/`, {
                         method: 'POST',
                         headers: {
@@ -3432,6 +3476,14 @@
                         console.log('Save successful:', data);
                         showToast('success', 'Changes saved successfully');
                         
+                        // Update last modified time if provided
+                        if (data.last_modified) {
+                            const lastModifiedElement = document.getElementById('lastModified');
+                            if (lastModifiedElement) {
+                                lastModifiedElement.textContent = data.last_modified;
+                            }
+                        }
+                        
                         // Reset edit state
                         cells.forEach(cell => {
                             cell.contentEditable = 'false';
@@ -3456,6 +3508,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
     // Add animation classes on load
     document.addEventListener('DOMContentLoaded', function() {

@@ -492,16 +492,52 @@ def visualize_page(request, file_index):
     """
     try:
         excel_file = ExcelFile.objects.get(id=file_index)
+        file_path = excel_file.file.path
         
-        # Read the Excel file
-        df = pd.read_excel(excel_file.file.path)
+        # Determine file type and read accordingly
+        file_ext = os.path.splitext(file_path)[1].lower()
+        df = None
+        
+        if file_ext == '.csv':
+            # Try different encodings for CSV
+            encodings = ['utf-8', 'latin1', 'cp1252']
+            for encoding in encodings:
+                try:
+                    df = pd.read_csv(file_path, encoding=encoding)
+                    break
+                except UnicodeDecodeError:
+                    continue
+                except Exception as e:
+                    last_error = str(e)
+        
+        elif file_ext == '.xlsx' or file_ext == '.xlsm':
+            df = pd.read_excel(file_path, engine='openpyxl')
+            
+        elif file_ext == '.xls':
+            df = pd.read_excel(file_path, engine='xlrd')
+            
+        else:
+            # Try all methods
+            try:
+                df = pd.read_excel(file_path, engine='openpyxl')
+            except Exception:
+                try:
+                    df = pd.read_excel(file_path, engine='xlrd')
+                except Exception:
+                    try:
+                        df = pd.read_csv(file_path)
+                    except Exception as e:
+                        raise Exception('Unable to read file. Please ensure it is a valid Excel or CSV file.')
+        
+        if df is None:
+            raise Exception('Unable to read file. Please ensure it is a valid Excel or CSV file.')
         
         # Get basic file info
         file_info = {
             'file_name': excel_file.file_name,
             'file_size': excel_file.get_file_size_display(),
             'upload_time': excel_file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S'),
+            'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S') if excel_file.has_been_edited else None,
             'rows_count': len(df),
             'columns_count': len(df.columns)
         }
@@ -514,7 +550,7 @@ def visualize_page(request, file_index):
                 'file_name': excel_file.file_name,
                 'file_size': excel_file.get_file_size_display(),
                 'upload_time': excel_file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S'),
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S') if excel_file.has_been_edited else None,
                 'rows_count': len(df),
                 'columns_count': len(df.columns),
                 'columns': df.columns.tolist(),
@@ -549,32 +585,55 @@ def get_file_data(request, file_index):
             }, status=404)
 
         try:
-            # Try reading with pandas
-            try:
-                # Try to read without assuming first row as header
-                df = pd.read_excel(file_path, engine='openpyxl', header=None)
-                # Get the first row as headers
-                headers = df.iloc[0].tolist()
-                # Remove the header row and set column names
-                df = df.iloc[1:]
-                df.columns = headers
-            except Exception as openpyxl_error:
-                try:
-                    df = pd.read_excel(file_path, engine='xlrd', header=None)
-                    headers = df.iloc[0].tolist()
-                    df = df.iloc[1:]
-                    df.columns = headers
-                except Exception as xlrd_error:
+            df = None
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            # Try reading based on file extension
+            if file_ext == '.csv':
+                # Try different encodings for CSV
+                encodings = ['utf-8', 'latin1', 'cp1252']
+                for encoding in encodings:
                     try:
-                        df = pd.read_csv(file_path, header=None)
-                        headers = df.iloc[0].tolist()
-                        df = df.iloc[1:]
-                        df.columns = headers
-                    except Exception as csv_error:
-                        return JsonResponse({
-                            'success': False,
-                            'error': 'Unable to read file. Please ensure it is a valid Excel or CSV file.'
-                        }, status=400)
+                        df = pd.read_csv(file_path, encoding=encoding, header=None)
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                    except Exception as e:
+                        last_error = str(e)
+                        
+            elif file_ext == '.xlsx' or file_ext == '.xlsm':
+                df = pd.read_excel(file_path, engine='openpyxl', header=None)
+                
+            elif file_ext == '.xls':
+                df = pd.read_excel(file_path, engine='xlrd', header=None)
+                
+            else:
+                # Unknown extension, try all methods
+                try:
+                    df = pd.read_excel(file_path, engine='openpyxl', header=None)
+                except Exception:
+                    try:
+                        df = pd.read_excel(file_path, engine='xlrd', header=None)
+                    except Exception:
+                        try:
+                            df = pd.read_csv(file_path, header=None)
+                        except Exception as e:
+                            return JsonResponse({
+                                'success': False,
+                                'error': 'Unable to read file. Please ensure it is a valid Excel or CSV file.'
+                            }, status=400)
+
+            if df is None:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Unable to read file. Please ensure it is a valid Excel or CSV file.'
+                }, status=400)
+
+            # Get the first row as headers
+            headers = df.iloc[0].tolist()
+            # Remove the header row and set column names
+            df = df.iloc[1:]
+            df.columns = headers
 
             # Replace NaN with empty string
             df = df.fillna('')
@@ -675,31 +734,34 @@ def save_file_data(request, file_index):
             # Update file metadata
             excel_file.rows_count = len(df)
             excel_file.columns_count = len(df.columns)
-            excel_file.save()
+            excel_file.file_size = os.path.getsize(excel_file.file.path)  # Update file size
+            excel_file.save(mark_edited=True, update_fields=['rows_count', 'columns_count', 'file_size', 'last_modified', 'has_been_edited'])
+            
+            # Get the updated last_modified time
+            excel_file.refresh_from_db()
+            print("File saved successfully")
             
             return JsonResponse({
                 'success': True, 
                 'message': 'File saved successfully',
-                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S')
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S') if excel_file.has_been_edited else None
             })
-        except Exception as e:
-            print(f"Error saving Excel file: {str(e)}")
-            return JsonResponse({
-                'success': False,
-                'error': f'Error saving file: {str(e)}'
-            }, status=500)
             
+        except PermissionError as e:
+            print(f"Permission error: {str(e)}")
+            return JsonResponse({'error': 'Permission denied. Unable to save file'}, status=403)
+        except Exception as e:
+            print(f"Error saving file: {str(e)}")
+            return JsonResponse({'error': f'Failed to save changes: {str(e)}'}, status=500)
+        
     except ExcelFile.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'error': 'File not found'
-        }, status=404)
+        print("Error: Excel file not found in database")
+        return JsonResponse({'error': 'Excel file record not found in database'}, status=404)
     except Exception as e:
-        print(f"Unexpected error in save_file_data: {str(e)}")
-        return JsonResponse({
-            'success': False,
-            'error': f'Unexpected error: {str(e)}'
-        }, status=500)
+        print(f"Unexpected error: {str(e)}")
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+    finally:
+        print("=== End save_changes ===")
 
 @require_http_methods(["GET"])
 def download_file(request, file_index):
@@ -867,16 +929,20 @@ def save_changes(request, file_index):
                 print("Saving as CSV...")
                 df.to_csv(file_path, index=False)
             
-            # Update file metadata
+            # Update file metadata and force last_modified update
             excel_file.rows_count = len(df)
             excel_file.columns_count = len(df.columns)
-            excel_file.save()
+            excel_file.file_size = os.path.getsize(file_path)  # Update file size
+            excel_file.save(mark_edited=True, update_fields=['rows_count', 'columns_count', 'file_size', 'last_modified', 'has_been_edited'])
+            
+            # Get the updated last_modified time
+            excel_file.refresh_from_db()
             print("File saved successfully")
             
             return JsonResponse({
                 'success': True, 
                 'message': 'Changes saved successfully',
-                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S')
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S') if excel_file.has_been_edited else None
             })
             
         except PermissionError as e:

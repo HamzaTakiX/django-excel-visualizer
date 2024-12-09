@@ -10,6 +10,7 @@ class ExcelFile(models.Model):
     file_size = models.IntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     last_modified = models.DateTimeField(auto_now=True)  # This will auto-update on save
+    has_been_edited = models.BooleanField(default=False)  # New field to track edits
     rows_count = models.IntegerField(default=0)
     columns_count = models.IntegerField(default=0)
 
@@ -19,6 +20,8 @@ class ExcelFile(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk:  # Only on creation
             self.file_size = self.file.size
+        elif kwargs.pop('mark_edited', False):  # If this is an edit operation
+            self.has_been_edited = True
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

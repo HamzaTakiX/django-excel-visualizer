@@ -13,10 +13,7 @@ A powerful Django-based web application for uploading, managing, and visualizing
   - Batch operations (select multiple, delete)
   - Individual file deletion
   - Download files in multiple formats (XLSX, CSV)
-  - Enhanced timestamp tracking:
-    - Upload time tracking
-    - Last modification time tracking
-    - Automatic time updates on file changes
+  - Real-time last modification tracking
   - File information cards with animations
   - Loading states with modern animations
 
@@ -244,6 +241,23 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 For any queries or support, please contact [hazoakaka@gmail.com]
 
 ## 🔄 Recent Updates
+
+### December 2024 Updates
+- **CSV File Handling**
+  - Enhanced support for CSV files with multiple encoding options
+  - Improved error handling for file reading
+  - Automatic detection of file types
+
+- **Error Handling Improvements**
+  - More descriptive error messages for file processing
+  - Robust handling of various file formats
+
+- **Backend Enhancements**
+  - Updated file reading logic to handle different file types
+  - Improved file processing efficiency
+
+- **UI Improvements**
+  - Consistent display of file information and error messages
 
 ### December 2024 Updates
 - **Enhanced Time Tracking**
