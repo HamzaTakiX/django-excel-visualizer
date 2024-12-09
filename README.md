@@ -13,7 +13,10 @@ A powerful Django-based web application for uploading, managing, and visualizing
   - Batch operations (select multiple, delete)
   - Individual file deletion
   - Download files in multiple formats (XLSX, CSV)
-  - Real-time last modification tracking
+  - Enhanced timestamp tracking:
+    - Upload time tracking
+    - Last modification time tracking
+    - Automatic time updates on file changes
   - File information cards with animations
   - Loading states with modern animations
 
@@ -114,28 +117,93 @@ Before running the project, make sure you have:
 
 ## 🚀 Installation
 
-1. Clone the repository:
+1. **Get the Project**
    ```bash
-   git clone https://github.com/HamzaTakiX/django-excel-visualizer.git
-   cd django-excel-visualizer
+   # Clone the repository (if using Git)
+   git clone [repository-url]
+   # Or download and extract the ZIP file
+   
+   # Navigate to project directory
+   cd my_dango_projecta
    ```
 
-2. Install dependencies:
+2. **Set Up Python Environment**
    ```bash
+   # Create virtual environment
+   python -m venv env
+   
+   # Activate virtual environment
+   # On Windows:
+   env\Scripts\activate
+   # On macOS/Linux:
+   source env/bin/activate
+   ```
+
+3. **Install Dependencies**
+   ```bash
+   # Install required packages
    pip install -r requirements.txt
    ```
 
-3. Run migrations:
+4. **Database Setup**
    ```bash
+   # Apply database migrations
+   python manage.py makemigrations
    python manage.py migrate
    ```
 
-4. Start the development server:
+## 🚀 Running the Project
+
+1. **Start Development Server**
    ```bash
+   source env/Scripts/activate
    python manage.py runserver
    ```
+   The application will be available at `http://127.0.0.1:8000/`
 
-5. Visit http://localhost:8000 in your browser
+2. **Access the Application**
+   - Open your web browser
+   - Go to `http://127.0.0.1:8000/`
+   - You should see the Excel Visualization homepage
+
+3. **Using the Application**
+   - Click "Upload" to add Excel files
+   - View uploaded files in the file list
+   - Click on a file to view its contents
+   - Use visualization options to create charts
+   - Download processed data as CSV
+
+4. **Stopping the Server**
+   - Press `Ctrl+C` in the terminal to stop the server
+   - Deactivate the virtual environment:
+     ```bash
+     deactivate
+     ```
+
+## 🔍 Troubleshooting
+
+Common issues and solutions:
+
+1. **Port Already in Use**
+   ```bash
+   # Use a different port
+   python manage.py runserver 8001
+   ```
+
+2. **Package Installation Issues**
+   ```bash
+   # Upgrade pip
+   python -m pip install --upgrade pip
+   # Then reinstall requirements
+   pip install -r requirements.txt
+   ```
+
+3. **Database Issues**
+   ```bash
+   # Reset database
+   python manage.py flush
+   python manage.py migrate
+   ```
 
 ## 📁 Project Structure
 
@@ -152,23 +220,12 @@ django-excel-visualizer/
 └── requirements.txt    # Dependencies
 ```
 
-## 💡 Usage
+## 🔒 Security Features
 
-1. **Upload Files**
-   - Click "Browse Files" or drag & drop Excel files
-   - Supports multiple file upload
-   - Automatic format detection
-
-2. **Manage Files**
-   - View all uploaded files in a grid layout
-   - Sort by name, date, or size
-   - Select multiple files for bulk operations
-   - Delete individual or multiple files
-
-3. **Visualize Data**
-   - Click on a file to view its contents
-   - Generate charts and statistics
-   - Export in different formats
+- File type validation
+- Secure file handling
+- Session-based operations
+- Error handling and validation
 
 ## 🤝 Contributing
 
@@ -178,12 +235,31 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## 👥 Authors
 
-- Django community for the excellent framework
-- Pandas team for data handling capabilities
-- Font Awesome for the beautiful icons
+- [hamza taki]
 
 ## 📧 Contact
 
-For any queries or suggestions, please open an issue on GitHub.
+For any queries or support, please contact [hazoakaka@gmail.com]
+
+## 🔄 Recent Updates
+
+### December 2024 Updates
+- **Enhanced Time Tracking**
+  - Added separate tracking for file upload time and last modification time
+  - Automatic updates of last modified time when saving changes
+  - Improved timestamp display format (YYYY-MM-DD HH:MM:SS)
+  - Visual distinction between upload time and last edit time
+
+- **UI Improvements**
+  - Added "Last Edit" badge to modification time display
+  - Enhanced info cards with consistent styling
+  - Improved time format display across all views
+  - Real-time updates of modification time on save
+
+- **Backend Enhancements**
+  - Improved timestamp handling in Django models
+  - Added auto-updating last_modified field
+  - Enhanced time formatting in API responses
+  - Better error handling for file operations

@@ -25,6 +25,7 @@ urlpatterns = [
     path('delete-multiple/', views.delete_multiple_excel, name='delete_multiple_excel'),
     path('delete-all/', views.delete_all_files, name='delete_all_files'),
     path('download/<int:file_index>/', views.download_file, name='download_file'),
+    path('save_changes/<int:file_index>/', views.save_changes, name='save_changes'),
     
     # New endpoint for getting all file IDs
     path('get-all-file-ids/', views.get_all_file_ids, name='get_all_file_ids'),

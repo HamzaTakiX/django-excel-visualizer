@@ -9,6 +9,7 @@ class ExcelFile(models.Model):
     file = models.FileField(upload_to='excel_files/')
     file_size = models.IntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    last_modified = models.DateTimeField(auto_now=True)  # This will auto-update on save
     rows_count = models.IntegerField(default=0)
     columns_count = models.IntegerField(default=0)
 

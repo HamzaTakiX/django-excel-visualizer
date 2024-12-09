@@ -501,6 +501,7 @@ def visualize_page(request, file_index):
             'file_name': excel_file.file_name,
             'file_size': excel_file.get_file_size_display(),
             'upload_time': excel_file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
+            'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S'),
             'rows_count': len(df),
             'columns_count': len(df.columns)
         }
@@ -509,11 +510,17 @@ def visualize_page(request, file_index):
         context = {
             'file': excel_file,
             'file_index': file_index,
-            'file_info': file_info,
             'data': {
+                'file_name': excel_file.file_name,
+                'file_size': excel_file.get_file_size_display(),
+                'upload_time': excel_file.uploaded_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S'),
+                'rows_count': len(df),
+                'columns_count': len(df.columns),
                 'columns': df.columns.tolist(),
                 'values': df.values.tolist()
-            }
+            },
+            'stats_columns': ['Column Name', 'Data Type', 'Non-Null Count', 'Null Count', 'Mean', 'Median', 'Mode', 'Min', 'Max', 'Std Dev']
         }
         
         return render(request, 'Excel_App/visualize.html', context)
@@ -636,28 +643,44 @@ def save_file_data(request, file_index):
                     'success': False,
                     'error': 'No content provided'
                 }, status=400)
-        except json.JSONDecodeError:
+        except (KeyError, json.JSONDecodeError):
             return JsonResponse({
                 'success': False,
                 'error': 'Invalid JSON data'
             }, status=400)
         
-        # Convert content to DataFrame
-        df = pd.DataFrame(content)
+        # Convert the data to a DataFrame
+        try:
+            # The data is already in the correct format for DataFrame creation
+            df = pd.DataFrame(content)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Error converting data: {str(e)}'
+            }, status=400)
         
         # Save to Excel file
         try:
-            df.to_excel(excel_file.file.path, index=False)
+            # Get file extension
+            file_ext = os.path.splitext(excel_file.file.path)[1].lower()
+            
+            # Save based on file extension
+            if file_ext == '.xlsx':
+                df.to_excel(excel_file.file.path, index=False, engine='openpyxl')
+            elif file_ext == '.xls':
+                df.to_excel(excel_file.file.path, index=False, engine='xlwt')
+            else:  # Default to CSV
+                df.to_csv(excel_file.file.path, index=False)
             
             # Update file metadata
             excel_file.rows_count = len(df)
             excel_file.columns_count = len(df.columns)
-            excel_file.file_size = os.path.getsize(excel_file.file.path)
             excel_file.save()
             
             return JsonResponse({
-                'success': True,
-                'message': 'File saved successfully'
+                'success': True, 
+                'message': 'File saved successfully',
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S')
             })
         except Exception as e:
             print(f"Error saving Excel file: {str(e)}")
@@ -681,18 +704,18 @@ def save_file_data(request, file_index):
 @require_http_methods(["GET"])
 def download_file(request, file_index):
     """
-    Download the Excel file.
+    Download the Excel file with format conversion.
     
     Args:
         request: HTTP request object
         file_index: ID of the Excel file
         
     Returns:
-        FileResponse: Excel file for download
+        FileResponse: Converted file for download
     """
     try:
-        # Get the requested format (default to csv)
-        format = request.GET.get('format', 'csv').lower()
+        # Get the requested format (default to xlsx)
+        format = request.GET.get('format', 'xlsx').lower()
         
         # Get the Excel file
         excel_file = ExcelFile.objects.get(id=file_index)
@@ -713,7 +736,7 @@ def download_file(request, file_index):
                 except Exception:
                     return JsonResponse({'error': 'Unable to read file'}, status=400)
         
-        # Create a response with the appropriate content type
+        # Create a response with the appropriate content type and conversion
         filename = os.path.splitext(excel_file.file_name)[0]
         
         if format == 'xlsx':
@@ -721,32 +744,40 @@ def download_file(request, file_index):
             response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
             with pd.ExcelWriter(response, engine='openpyxl') as writer:
                 df.to_excel(writer, index=False)
-            return response
+                
         elif format == 'xls':
             # Create a temporary XLSX file first
-            temp_xlsx = f'{filename}_temp.xlsx'
+            temp_xlsx = os.path.join(settings.MEDIA_ROOT, 'temp', f'{filename}_temp.xlsx')
+            os.makedirs(os.path.dirname(temp_xlsx), exist_ok=True)
             df.to_excel(temp_xlsx, index=False, engine='openpyxl')
             
             try:
-                # Convert XLSX to XLS using win32com
-                import win32com.client
-                excel = win32com.client.Dispatch("Excel.Application")
-                wb = excel.Workbooks.Open(os.path.abspath(temp_xlsx))
-                temp_xls = f'{filename}_temp.xls'
-                wb.SaveAs(os.path.abspath(temp_xls), FileFormat=56)  # 56 is xls format
-                wb.Close()
-                excel.Quit()
+                # Convert XLSX to XLS using openpyxl and xlwt
+                response = HttpResponse(content_type='application/vnd.ms-excel')
+                response['Content-Disposition'] = f'attachment; filename="{filename}.xls"'
                 
-                # Read the XLS file and create response
-                with open(temp_xls, 'rb') as f:
-                    response = HttpResponse(f.read(), content_type='application/vnd.ms-excel')
-                    response['Content-Disposition'] = f'attachment; filename="{filename}.xls"'
+                # Use xlwt for XLS format
+                import xlwt
+                wb = xlwt.Workbook()
+                ws = wb.add_sheet('Sheet1')
                 
-                # Clean up temporary files
-                os.remove(temp_xlsx)
-                os.remove(temp_xls)
+                # Write headers
+                for col, header in enumerate(df.columns):
+                    ws.write(0, col, str(header))
                 
+                # Write data
+                for row_idx, row in enumerate(df.values, 1):
+                    for col_idx, value in enumerate(row):
+                        ws.write(row_idx, col_idx, value)
+                
+                wb.save(response)
+                
+                # Clean up temporary file
+                if os.path.exists(temp_xlsx):
+                    os.remove(temp_xlsx)
+                    
                 return response
+                
             except Exception as e:
                 # If conversion fails, fallback to XLSX
                 if os.path.exists(temp_xlsx):
@@ -756,12 +787,26 @@ def download_file(request, file_index):
                 response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
                 with pd.ExcelWriter(response, engine='openpyxl') as writer:
                     df.to_excel(writer, index=False)
-                return response
-        else:  # csv
+                    
+        elif format == 'csv':
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
             df.to_csv(response, index=False)
-            return response
+            
+        elif format == 'txt':
+            response = HttpResponse(content_type='text/plain')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.txt"'
+            df.to_csv(response, index=False, sep='\t')
+            
+        elif format == 'json':
+            response = HttpResponse(content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.json"'
+            df.to_json(response, orient='records', indent=2)
+            
+        else:
+            return JsonResponse({'error': 'Unsupported format'}, status=400)
+            
+        return response
             
     except ExcelFile.DoesNotExist:
         return JsonResponse({'error': 'File not found'}, status=404)
@@ -771,43 +816,84 @@ def download_file(request, file_index):
 @require_http_methods(["POST"])
 def save_changes(request, file_index):
     try:
+        print("=== Starting save_changes ===")
+        print(f"File index: {file_index}")
+        
         # Get the Excel file
         excel_file = ExcelFile.objects.get(id=file_index)
         file_path = os.path.join(settings.MEDIA_ROOT, str(excel_file.file))
+        print(f"File path: {file_path}")
         
         if not os.path.exists(file_path):
-            return JsonResponse({'error': 'File not found'}, status=404)
+            print("Error: File not found on disk")
+            return JsonResponse({'error': 'Excel file not found on the server'}, status=404)
         
         # Get the data from request
         try:
-            data = json.loads(request.body)['data']
-        except (KeyError, json.JSONDecodeError):
+            request_data = json.loads(request.body)
+            print("Request data:", request_data)
+            data = request_data['data']
+            print("Parsed data:", data)
+        except (KeyError, json.JSONDecodeError) as e:
+            print(f"Error parsing request data: {str(e)}")
             return JsonResponse({'error': 'Invalid data format'}, status=400)
         
+        if not data:
+            print("Error: No data provided")
+            return JsonResponse({'error': 'No data provided for saving'}, status=400)
+            
         # Convert the data to a DataFrame
-        df = pd.DataFrame(data)
+        try:
+            print("Creating DataFrame...")
+            df = pd.DataFrame(data)
+            print("DataFrame created successfully")
+            print("DataFrame shape:", df.shape)
+            print("DataFrame columns:", df.columns.tolist())
+        except Exception as e:
+            print(f"Error creating DataFrame: {str(e)}")
+            return JsonResponse({'error': f'Error converting data: {str(e)}'}, status=400)
         
         # Determine file type and save accordingly
         file_ext = os.path.splitext(file_path)[1].lower()
         try:
+            print(f"Saving file with extension: {file_ext}")
             if file_ext == '.xlsx':
+                print("Saving as XLSX...")
                 df.to_excel(file_path, index=False, engine='openpyxl')
             elif file_ext == '.xls':
+                print("Saving as XLS...")
                 df.to_excel(file_path, index=False, engine='xlwt')
             else:  # Default to CSV
+                print("Saving as CSV...")
                 df.to_csv(file_path, index=False)
             
-            return JsonResponse({'message': 'Changes saved successfully'})
+            # Update file metadata
+            excel_file.rows_count = len(df)
+            excel_file.columns_count = len(df.columns)
+            excel_file.save()
+            print("File saved successfully")
             
+            return JsonResponse({
+                'success': True, 
+                'message': 'Changes saved successfully',
+                'last_modified': excel_file.last_modified.strftime('%Y-%m-%d %H:%M:%S')
+            })
+            
+        except PermissionError as e:
+            print(f"Permission error: {str(e)}")
+            return JsonResponse({'error': 'Permission denied. Unable to save file'}, status=403)
         except Exception as e:
             print(f"Error saving file: {str(e)}")
-            return JsonResponse({'error': 'Failed to save changes to file'}, status=500)
+            return JsonResponse({'error': f'Failed to save changes: {str(e)}'}, status=500)
         
     except ExcelFile.DoesNotExist:
-        return JsonResponse({'error': 'File not found'}, status=404)
+        print("Error: Excel file not found in database")
+        return JsonResponse({'error': 'Excel file record not found in database'}, status=404)
     except Exception as e:
         print(f"Unexpected error: {str(e)}")
-        return JsonResponse({'error': str(e)}, status=500)
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
+    finally:
+        print("=== End save_changes ===")
 
 @require_http_methods(["GET"])
 def get_all_file_ids(request):

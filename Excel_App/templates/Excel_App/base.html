@@ -39,9 +39,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 3rem;
+            padding: 1rem;
             gap: 2rem;
-            margin-top: 2rem;
+            margin-top: 1rem;
+            margin-bottom: -2rem;
         }
 
         .nav-button {
@@ -158,7 +159,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    {% csrf_token %}
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
     <div class="nav-container">
         <a href="{% url 'upload_excel' %}" class="nav-button {% if request.resolver_match.url_name == 'upload_excel' %}active{% endif %}">
             <i class="fas fa-cloud-arrow-up"></i>
