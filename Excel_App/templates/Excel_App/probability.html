@@ -1,0 +1,233 @@
+{% extends 'Excel_App/base.html' %}
+
+{% block content %}
+<style>
+    .prob-container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .prob-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        position: relative;
+        animation: cardFloat 6s ease-in-out infinite;
+        height: 350px; /* Fixed height for all cards */
+        display: flex;
+        flex-direction: column;
+    }
+
+    @keyframes cardFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-5px) rotate(0.5deg); }
+        75% { transform: translateY(5px) rotate(-0.5deg); }
+    }
+
+    .prob-card:hover {
+        animation: none;
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 15px 45px rgba(31, 38, 135, 0.2);
+    }
+
+    .prob-card:hover::before {
+        transform: translateX(100%);
+    }
+
+    .prob-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.4), transparent 70%);
+        transition: transform 0.7s;
+        transform: translateX(-100%);
+    }
+
+    .prob-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+
+    .prob-card:hover::after {
+        opacity: 0.1;
+    }
+
+    .prob-card .card-body {
+        padding: 2.5rem 1.8rem;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .prob-icon {
+        font-size: 3.5rem;
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1.5rem;
+        transform-origin: center;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        animation: iconRotate 4s ease-in-out infinite;
+    }
+
+    @keyframes iconRotate {
+        0% { transform: rotate(-2deg); }
+        50% { transform: rotate(2deg); }
+        100% { transform: rotate(-2deg); }
+    }
+
+    .prob-card:hover .prob-icon {
+        animation: iconPulse 2s infinite;
+    }
+
+    @keyframes iconPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .prob-card .card-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        color: var(--primary-dark);
+    }
+
+    .prob-card .card-text {
+        color: #666;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    .prob-btn {
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        padding: 0.8rem 2rem;
+        color: white;
+        border-radius: 50px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 102, 255, 0.2);
+        text-decoration: none;
+        display: inline-block;
+        min-width: 200px;
+        text-align: center;
+    }
+
+    .prob-btn:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 102, 255, 0.3);
+        color: white;
+        text-decoration: none !important;
+    }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .col-md-4 {
+        display: flex;
+        margin-bottom: 2rem;
+    }
+</style>
+
+<div class="prob-container">
+    <h2 class="text-center mb-4" style="color: var(--primary-dark); font-weight: 700; font-size: 2.5rem;">Probability Distributions</h2>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-chart-line prob-icon"></i>
+                    <h5 class="card-title">Normal Distribution</h5>
+                    <p class="card-text">Calculate probabilities using the normal (Gaussian) distribution.</p>
+                    <a href="{% url 'probability_calc' 'normal' %}" class="prob-btn">Calculate Normal</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-dice prob-icon"></i>
+                    <h5 class="card-title">Binomial</h5>
+                    <p class="card-text">Calculate probabilities for binary outcome experiments.</p>
+                    <a href="{% url 'probability_calc' 'binomial' %}" class="prob-btn">Calculate Binomial</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-hourglass-half prob-icon"></i>
+                    <h5 class="card-title">Poisson Distribution</h5>
+                    <p class="card-text">Calculate probabilities for rare events in fixed intervals.</p>
+                    <a href="{% url 'probability_calc' 'poisson' %}" class="prob-btn">Calculate Poisson</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-random prob-icon"></i>
+                    <h5 class="card-title">Bernoulli</h5>
+                    <p class="card-text">Distribution de Bernoulli pour les essais avec succès/échec.</p>
+                    <a href="{% url 'probability_calc' 'bernoulli' %}" class="prob-btn">Calculate Bernoulli</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-equals prob-icon"></i>
+                    <h5 class="card-title">Uniform</h5>
+                    <p class="card-text">Distribution uniforme pour une probabilité égale sur un intervalle.</p>
+                    <a href="{% url 'probability_calc' 'uniform' %}" class="prob-btn">Calculate Uniform</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="prob-card">
+                <div class="card-body">
+                    <i class="fas fa-chart-area prob-icon"></i>
+                    <h5 class="card-title">Exponential</h5>
+                    <p class="card-text">Distribution exponentielle pour le temps entre les événements.</p>
+                    <a href="{% url 'probability_calc' 'exponential' %}" class="prob-btn">Calculate Exponential</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

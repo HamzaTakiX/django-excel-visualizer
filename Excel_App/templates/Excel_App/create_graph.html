@@ -1,0 +1,631 @@
+{% extends 'Excel_App/base.html' %}
+
+{% block extra_css %}
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .graph-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 2rem;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .file-selection {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+    }
+
+    .file-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .file-card {
+        cursor: pointer;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        margin: 10px 0;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background-color: white;
+    }
+
+    .file-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: #007bff;
+    }
+
+    .file-card.selected {
+        background-color: #e3f2fd;
+        border-color: #007bff;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+    }
+
+    .file-icon {
+        color: #007bff;
+        font-size: 1.5rem;
+    }
+
+    .no-files {
+        text-align: center;
+        padding: 4rem 2rem;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .no-files-icon {
+        font-size: 4rem;
+        color: var(--primary);
+        margin-bottom: 1.5rem;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    .no-files-text {
+        font-size: 1.5rem;
+        color: var(--primary-dark);
+        margin-bottom: 2rem;
+        font-weight: 500;
+    }
+
+    .upload-btn {
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        padding: 1rem 2rem;
+        color: white;
+        border-radius: 50px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        animation: pulse 2s infinite;
+    }
+
+    .upload-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 102, 255, 0.3);
+    }
+
+    .upload-btn i {
+        font-size: 1.2rem;
+    }
+
+    .data-selection {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        padding: 2rem;
+        margin-top: 2rem;
+        display: none;
+    }
+
+    .column-select {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .select-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .select-group label {
+        font-weight: 600;
+        color: var(--primary-dark);
+    }
+
+    .select-group select {
+        padding: 0.8rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .graph-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .option-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .option-group label {
+        font-weight: 600;
+        color: var(--primary-dark);
+    }
+
+    .option-group input[type="text"],
+    .option-group select {
+        padding: 0.8rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        background: white;
+    }
+
+    .option-group input[type="color"] {
+        width: 100%;
+        height: 40px;
+        padding: 0;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+
+    .button-container {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        align-items: stretch;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .create-graph-btn, .reset-btn {
+        padding: 1rem 2rem;
+        border: none;
+        color: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        min-height: 3.5rem;
+        min-width: 180px;
+    }
+
+    .create-graph-btn {
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        box-shadow: 0 4px 6px rgba(0, 102, 255, 0.1);
+    }
+
+    .reset-btn {
+        background: linear-gradient(45deg, #ff4b4b 0%, #ff6b6b 100%);
+        box-shadow: 0 4px 6px rgba(255, 75, 75, 0.1);
+    }
+
+    .create-graph-btn:hover, .reset-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .create-graph-btn:hover {
+        box-shadow: 0 6px 8px rgba(0, 102, 255, 0.2);
+    }
+
+    .reset-btn:hover {
+        box-shadow: 0 6px 8px rgba(255, 75, 75, 0.2);
+    }
+
+    .create-graph-btn:active, .reset-btn:active {
+        transform: translateY(0);
+    }
+
+    .create-graph-btn i, .reset-btn i {
+        font-size: 1.1em;
+    }
+
+    #graph-result {
+        margin-top: 2rem;
+        width: 100%;
+        min-height: 500px;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        display: none;
+    }
+
+    .section-title {
+        color: var(--primary-dark);
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        opacity: 0;
+        transform: translateY(-20px);
+        animation: slideIn 0.3s forwards;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .notification.success {
+        background: linear-gradient(45deg, #28a745, #34ce57);
+    }
+
+    .notification.error {
+        background: linear-gradient(45deg, #dc3545, #ff4d5b);
+    }
+
+    .notification.warning {
+        background: linear-gradient(45deg, #ffc107, #ffcd39);
+        color: #000;
+    }
+
+    @keyframes slideIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="notifications-container"></div>
+
+<div class="graph-container">
+    <h2 class="text-center mb-4" style="color: var(--primary-dark); font-weight: 700; font-size: 2.5rem;">Créer un {{ graph_type|title }} Graph</h2>
+    
+    <div class="file-selection">
+        <h3 class="section-title">Sélectionner un fichier</h3>
+        {% if excel_files %}
+            <div class="file-list">
+                {% for file in excel_files %}
+                    <div class="file-card" onclick='selectFile("{{ file.id|escapejs }}", "{{ file.path|escapejs }}")' id="file-{{ file.id }}">
+                        <i class="fas fa-file-excel file-icon"></i>
+                        <span>{{ file.name }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="no-files">
+                <i class="fas fa-file-upload no-files-icon"></i>
+                <p class="no-files-text">Aucun fichier trouvé</p>
+                <a href="{% url 'upload_excel' %}" class="upload-btn">
+                    <i class="fas fa-plus"></i>
+                    Importer un fichier
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="data-selection" id="data-selection">
+        <div class="column-select">
+            <div class="select-group">
+                <label>Axe X</label>
+                <select id="x_column" class="form-select">
+                    <option value="">Sélectionner une colonne</option>
+                </select>
+            </div>
+            <div class="select-group">
+                <label>Axe Y</label>
+                <select id="y_column" class="form-select">
+                    <option value="">Sélectionner une colonne</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="graph-options">
+            <div class="option-group">
+                <label>Titre du graphique</label>
+                <input type="text" id="graph-title" class="form-control" placeholder="Mon graphique">
+            </div>
+            <div class="option-group" id="color-container">
+                <label>Couleur</label>
+                <input type="color" id="graph-color" value="#0066ff">
+            </div>
+            <div class="option-group" id="line-style-container">
+                <label>Style de ligne</label>
+                <select id="line-style" class="form-select">
+                    <option value="solid">Solide</option>
+                    <option value="dash">Pointillés</option>
+                    <option value="dot">Points</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="button-container">
+            <button id="create-graph-btn" class="create-graph-btn">
+                <i class="fas fa-chart-line"></i>
+                Créer le graphique {{ graph_type|title }}
+            </button>
+            <button id="reset-btn" class="reset-btn">
+                <i class="fas fa-undo"></i>
+                Réinitialiser
+            </button>
+        </div>
+
+    </div>
+
+    <div id="graph-result"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Add Plotly.js -->
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+    let selectedFileId = null;
+    let selectedFilePath = null;
+
+    function selectFile(fileId, filePath) {
+        // Remove previous selection
+        const previousSelected = document.querySelector('.file-card.selected');
+        if (previousSelected) {
+            previousSelected.classList.remove('selected');
+        }
+
+        // Add selection to current file
+        const currentFile = document.getElementById('file-' + fileId);
+        if (currentFile) {
+            currentFile.classList.add('selected');
+        }
+
+        selectedFileId = fileId;
+        selectedFilePath = filePath;
+
+        // Fetch columns for the selected file
+        fetch('/get_file_columns/' + fileId + '/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.columns && Array.isArray(data.columns)) {
+                    const xSelect = document.getElementById('x_column');
+                    const ySelect = document.getElementById('y_column');
+                    
+                    // Clear previous options
+                    xSelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                    ySelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                    
+                    // Add new options
+                    data.columns.forEach(column => {
+                        xSelect.add(new Option(column, column));
+                        ySelect.add(new Option(column, column));
+                    });
+                    
+                    // Show data selection section
+                    document.getElementById('data-selection').style.display = 'block';
+                } else {
+                    showNotification('Erreur: Aucune colonne trouvée dans le fichier', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Erreur lors du chargement des colonnes', 'error');
+            });
+    }
+
+    function showNotification(message, type = 'success') {
+        const container = document.getElementById('notifications-container');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        container.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                container.removeChild(notification);
+            }, 300);
+        }, 5000);
+    }
+
+    function fetchColumns(fileId) {
+        fetch('/get_file_columns/' + fileId + '/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.columns && Array.isArray(data.columns)) {
+                    const xSelect = document.getElementById('x_column');
+                    const ySelect = document.getElementById('y_column');
+                    
+                    // Clear previous options
+                    xSelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                    ySelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                    
+                    // Add new options
+                    data.columns.forEach(column => {
+                        xSelect.add(new Option(column, column));
+                        ySelect.add(new Option(column, column));
+                    });
+                } else {
+                    showNotification('Erreur: Aucune colonne trouvée dans le fichier', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Erreur lors du chargement des colonnes', 'error');
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the graph type from the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const graphType = urlParams.get('type') || 'line';
+        
+        // Show/hide line style based on graph type
+        const lineStyleContainer = document.getElementById('line-style-container');
+        if (lineStyleContainer) {
+            lineStyleContainer.style.display = graphType === 'line' ? 'block' : 'none';
+        }
+        
+        // Show/hide color input based on graph type
+        const colorContainer = document.getElementById('color-container');
+        if (colorContainer) {
+            colorContainer.style.display = graphType === 'heatmap' ? 'none' : 'block';
+        }
+        
+        // Update button text based on graph type
+        const graphTypeNames = {
+            'line': 'Ligne',
+            'bar': 'Barres',
+            'scatter': 'Nuage de points',
+            'pie': 'Secteurs',
+            'histogram': 'Histogramme',
+            'box': 'Boîte',
+            'heatmap': 'Carte de chaleur',
+            'violin': 'Violon'
+        };
+        
+        const createButton = document.getElementById('create-graph-btn');
+        if (createButton) {
+            const graphTypeName = graphTypeNames[graphType] || graphType;
+            createButton.innerHTML = `<i class="fas fa-chart-line"></i> Créer le graphique ${graphTypeName}`;
+        }
+        
+        document.getElementById('create-graph-btn').addEventListener('click', function() {
+            if (!selectedFileId) {
+                showNotification('Veuillez sélectionner un fichier Excel', 'error');
+                return;
+            }
+
+            const xColumn = document.getElementById('x_column').value;
+            const yColumn = document.getElementById('y_column').value;
+
+            if (!xColumn || !yColumn) {
+                showNotification('Veuillez sélectionner les colonnes X et Y', 'error');
+                return;
+            }
+
+            const graphData = {
+                file_id: selectedFileId,
+                x_column: xColumn,
+                y_column: yColumn,
+                graph_type: graphType,
+                title: document.getElementById('graph-title').value || 'Mon graphique',
+                color: document.getElementById('graph-color').value,
+                line_style: document.getElementById('line-style').value
+            };
+
+            fetch('{% url "create_graph_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(graphData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Erreur serveur');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.graph) {
+                    const graphResult = document.getElementById('graph-result');
+                    graphResult.style.display = 'block';
+                    graphResult.innerHTML = '';
+                    
+                    console.log('Graph data:', data.graph);
+                    
+                    // Ensure we have valid data and layout
+                    const plotData = Array.isArray(data.graph.data) ? data.graph.data : [];
+                    const plotLayout = data.graph.layout || {};
+                    
+                    if (plotData.length === 0) {
+                        showNotification('Erreur: Données du graphique invalides', 'error');
+                        return;
+                    }
+                    
+                    Plotly.newPlot(graphResult, plotData, plotLayout, {
+                        responsive: true,
+                        displayModeBar: true
+                    })
+                    .then(() => {
+                        showNotification('Graphique créé avec succès!', 'success');
+                    })
+                    .catch(error => {
+                        console.error('Plotly error:', error);
+                        showNotification('Erreur lors de l\'affichage du graphique', 'error');
+                    });
+                } else if (data.error) {
+                    showNotification(data.error, 'error');
+                } else {
+                    showNotification('Erreur lors de la création du graphique: Données invalides', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification(error.message || 'Erreur lors de la création du graphique', 'error');
+            });
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            // Reset graph inputs only
+            document.getElementById('x_column').value = '';
+            document.getElementById('y_column').value = '';
+            document.getElementById('graph-title').value = '';
+            document.getElementById('graph-color').value = '#0066ff';
+            if (document.getElementById('line-style')) {
+                document.getElementById('line-style').value = 'solid';
+            }
+            
+            // Clear the graph result
+            const graphResult = document.getElementById('graph-result');
+            graphResult.innerHTML = '';
+            graphResult.style.display = 'none';
+            
+            // Don't reset file selection
+            // Keep the columns dropdown populated
+            if (selectedFileId) {
+                fetchColumns(selectedFileId);
+            }
+            
+            // Show success notification
+            showNotification('Options du graphique réinitialisées', 'success');
+        });
+    });
+</script>
+{% endblock %}

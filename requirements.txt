@@ -9,3 +9,6 @@ python-magic-bin==0.4.14
 numpy==2.0.0
 Pillow==10.2.0
 python-dateutil==2.9.0
+plotly==5.18.0
+scikit-learn==1.4.0  # For advanced data analysis
+scipy==1.12.0  # Required for statistical functions

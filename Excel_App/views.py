@@ -17,6 +17,10 @@ from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import json
 from django.conf import settings
+import numpy as np
+from scipy.stats import binom, poisson, norm, bernoulli, uniform, expon
+import plotly.graph_objects as go
+import plotly.graph_objects
 
 def handle_uploaded_file(file):
     """
@@ -119,6 +123,7 @@ def upload_excel(request):
                                 continue
                             except Exception as e:
                                 last_error = str(e)
+                        
                     except Exception as e:
                         print(f"Error reading CSV: {str(e)}")
                         last_error = str(e)
@@ -594,7 +599,7 @@ def get_file_data(request, file_index):
                 encodings = ['utf-8', 'latin1', 'cp1252']
                 for encoding in encodings:
                     try:
-                        df = pd.read_csv(file_path, encoding=encoding, header=None)
+                        df = pd.read_csv(file_path, encoding=encoding)
                         break
                     except UnicodeDecodeError:
                         continue
@@ -602,21 +607,21 @@ def get_file_data(request, file_index):
                         last_error = str(e)
                         
             elif file_ext == '.xlsx' or file_ext == '.xlsm':
-                df = pd.read_excel(file_path, engine='openpyxl', header=None)
+                df = pd.read_excel(file_path, engine='openpyxl')
                 
             elif file_ext == '.xls':
-                df = pd.read_excel(file_path, engine='xlrd', header=None)
+                df = pd.read_excel(file_path, engine='xlrd')
                 
             else:
                 # Unknown extension, try all methods
                 try:
-                    df = pd.read_excel(file_path, engine='openpyxl', header=None)
+                    df = pd.read_excel(file_path, engine='openpyxl')
                 except Exception:
                     try:
-                        df = pd.read_excel(file_path, engine='xlrd', header=None)
+                        df = pd.read_excel(file_path, engine='xlrd')
                     except Exception:
                         try:
-                            df = pd.read_csv(file_path, header=None)
+                            df = pd.read_csv(file_path)
                         except Exception as e:
                             return JsonResponse({
                                 'success': False,
@@ -990,3 +995,689 @@ def get_all_file_ids(request):
         return JsonResponse({'file_ids': file_ids})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+def read_file_with_pandas(file_path):
+    """
+    Try to read a file using different pandas readers and engines.
+    """
+    try:
+        # Try reading as Excel with openpyxl
+        return pd.read_excel(file_path, engine='openpyxl')
+    except Exception as e1:
+        try:
+            # Try reading as Excel with xlrd
+            return pd.read_excel(file_path, engine='xlrd')
+        except Exception as e2:
+            try:
+                # Try reading as CSV
+                return pd.read_csv(file_path)
+            except Exception as e3:
+                try:
+                    # Try reading as Excel without specifying engine
+                    return pd.read_excel(file_path)
+                except Exception as e4:
+                    raise ValueError(f"Could not read file. Tried multiple formats:\nopenpyxl: {str(e1)}\nxlrd: {str(e2)}\ncsv: {str(e3)}\ndefault: {str(e4)}")
+
+def get_file_columns(request, file_id):
+    """
+    API endpoint to get columns from a file.
+    Returns only numeric columns for graph creation.
+    """
+    try:
+        excel_file = ExcelFile.objects.get(id=file_id)
+        file_path = excel_file.file.path
+        
+        try:
+            if file_path.endswith('.csv'):
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+            
+            # Get only numeric columns
+            numeric_columns = df.select_dtypes(include=['int64', 'float64', 'int32', 'float32']).columns.tolist()
+            
+            return JsonResponse({
+                'columns': numeric_columns,
+                'total_columns': len(df.columns),
+                'numeric_columns': len(numeric_columns)
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': f'Error reading file: {str(e)}'}, status=400)
+            
+    except ExcelFile.DoesNotExist:
+        return JsonResponse({'error': 'File not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["POST"])
+def calculate_probability(request):
+    """
+    Calculate probability based on the selected distribution and parameters.
+    """
+    try:
+        data = json.loads(request.body)
+        file_id = data.get('file_id')
+        columns = [str(col) for col in data.get('columns', [])]  # Convert column names to strings
+        distribution_type = data.get('distribution_type')
+
+        if not file_id or not columns or not distribution_type:
+            return JsonResponse({'error': 'Missing required parameters'}, status=400)
+
+        excel_file = ExcelFile.objects.get(id=file_id)
+        df = read_file_with_pandas(excel_file.file.path)
+        
+        # Convert DataFrame column names to strings
+        df.columns = df.columns.astype(str)
+        
+        # Ensure columns exist in the DataFrame
+        missing_columns = [col for col in columns if col not in df.columns]
+        if missing_columns:
+            return JsonResponse({
+                'error': f'Colonnes non trouvées: {", ".join(missing_columns)}'
+            }, status=400)
+
+        # Convert selected columns to a single Pandas Series and handle non-numeric values
+        data_series = pd.Series()
+        for col in columns:
+            # Convert column to numeric, coerce errors to NaN
+            numeric_col = pd.to_numeric(df[col], errors='coerce')
+            # Append non-NaN values to data_series
+            data_series = pd.concat([data_series, numeric_col.dropna()])
+
+        if len(data_series) == 0:
+            return JsonResponse({
+                'error': 'Aucune donnée numérique valide trouvée dans les colonnes sélectionnées'
+            }, status=400)
+
+        # Convert to numpy array for calculations
+        data_array = data_series.to_numpy()
+
+        # Calculate basic statistics
+        data_mean = np.mean(data_array)
+        data_std = np.std(data_array, ddof=1)  # ddof=1 for sample standard deviation
+        observation_count = len(data_array)
+
+        result = {
+            'probability': 0,
+            'confidence_interval': [0, 0],
+            'data': {'x': [], 'y': []},
+            'observation_count': observation_count,
+            'data_mean': float(data_mean),
+            'data_std': float(data_std),
+            'distribution_params': {}
+        }
+
+        if distribution_type == 'binomial':
+            n = int(data.get('n', 10))
+            p = float(data.get('p', 0.5))
+            
+            # Calculate probability
+            k = len(data_array[data_array > 0])  # number of successes
+            result['probability'] = float(binom.pmf(k, n, p))
+            result['distribution_params'] = {
+                'n (nombre d\'essais)': n,
+                'p (probabilité de succès)': p,
+                'k (succès observés)': k
+            }
+            
+            # Calculate confidence interval
+            ci = binom.interval(0.95, n, p)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.arange(0, n+1)
+            y = binom.pmf(x, n, p)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        elif distribution_type == 'poisson':
+            lambda_param = float(data.get('lambda', 1.0))
+            
+            # Calculate probability
+            k = int(data_mean)
+            result['probability'] = float(poisson.pmf(k, lambda_param))
+            result['distribution_params'] = {
+                'λ (lambda)': lambda_param,
+                'k (événements observés)': k
+            }
+            
+            # Calculate confidence interval
+            ci = poisson.interval(0.95, lambda_param)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.arange(0, int(lambda_param * 3))
+            y = poisson.pmf(x, lambda_param)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        elif distribution_type == 'normal':
+            mean = float(data.get('mean', 0))
+            std = float(data.get('std', 1))
+            
+            # Calculate probability (probability of being within 1 std dev of mean)
+            result['probability'] = float(norm.cdf(mean + std, mean, std) - norm.cdf(mean - std, mean, std))
+            result['distribution_params'] = {
+                'μ (moyenne)': mean,
+                'σ (écart-type)': std
+            }
+            
+            # Calculate confidence interval
+            ci = norm.interval(0.95, mean, std)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.linspace(mean - 4*std, mean + 4*std, 100)
+            y = norm.pdf(x, mean, std)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        elif distribution_type == 'bernoulli':
+            p = float(data.get('p', 0.5))
+            
+            # Calculate probability
+            k = 1 if data_mean > 0.5 else 0
+            result['probability'] = float(bernoulli.pmf(k, p))
+            result['distribution_params'] = {
+                'p (probabilité de succès)': p,
+                'Résultat observé': k
+            }
+            
+            # Calculate confidence interval
+            ci = bernoulli.interval(0.95, p)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.array([0, 1])
+            y = bernoulli.pmf(x, p)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        elif distribution_type == 'uniform':
+            a = float(data.get('a', 0))
+            b = float(data.get('b', 1))
+            
+            # Calculate probability (probability of being in middle third)
+            result['probability'] = float(uniform.cdf(b/3*2, a, b) - uniform.cdf(b/3, a, b))
+            result['distribution_params'] = {
+                'a (borne inférieure)': a,
+                'b (borne supérieure)': b
+            }
+            
+            # Calculate confidence interval
+            ci = uniform.interval(0.95, a, b)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.linspace(a-0.1*(b-a), b+0.1*(b-a), 100)
+            y = uniform.pdf(x, a, b-a)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        elif distribution_type == 'exponential':
+            lambda_param = float(data.get('lambda', 1))
+            
+            # Calculate probability (probability of being less than mean)
+            result['probability'] = float(expon.cdf(1/lambda_param, scale=1/lambda_param))
+            result['distribution_params'] = {
+                'λ (lambda)': lambda_param,
+                'Moyenne (1/λ)': 1/lambda_param
+            }
+            
+            # Calculate confidence interval
+            ci = expon.interval(0.95, scale=1/lambda_param)
+            result['confidence_interval'] = [float(ci[0]), float(ci[1])]
+            
+            # Generate distribution plot data
+            x = np.linspace(0, 5/lambda_param, 100)
+            y = expon.pdf(x, scale=1/lambda_param)
+            result['data'] = {'x': x.tolist(), 'y': y.tolist()}
+
+        else:
+            return JsonResponse({'error': f'Distribution type {distribution_type} not supported'}, status=400)
+
+        return JsonResponse(result)
+
+    except ExcelFile.DoesNotExist:
+        return JsonResponse({'error': 'File not found'}, status=404)
+    except Exception as e:
+        print(f"Error calculating probability: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
+def probability_page(request):
+    """
+    Render the probability distribution page.
+    
+    Args:
+        request: HTTP request object
+        
+    Returns:
+        HttpResponse: Rendered probability template
+    """
+    return render(request, 'Excel_App/probability.html')
+
+def probability_calc(request, distribution_type):
+    """
+    Render the probability calculation page for a specific distribution.
+    """
+    distribution_names = {
+        'binomial': 'Distribution Binomiale',
+        'poisson': 'Distribution de Poisson',
+        'normal': 'Distribution Normale',
+        'bernoulli': 'Distribution de Bernoulli',
+        'uniform': 'Distribution Uniforme',
+        'exponential': 'Distribution Exponentielle'
+    }
+
+    excel_files = ExcelFile.objects.all()
+    
+    context = {
+        'distribution_type': distribution_type,
+        'distribution_name': distribution_names.get(distribution_type, ''),
+        'excel_files': excel_files
+    }
+    
+    return render(request, 'Excel_App/probability_calc.html', context)
+
+def graphs_page(request):
+    """
+    View function for the graphs page where users can create different types of visualizations.
+    """
+    return render(request, 'Excel_App/graphs.html')
+
+def create_graph_page(request):
+    """
+    View function for the graph creation page.
+    """
+    graph_type = request.GET.get('type', 'line')  # Type par défaut : line
+    
+    # Récupérer la liste des fichiers depuis la base de données
+    excel_files = ExcelFile.objects.all()
+    files_list = []
+    for file in excel_files:
+        files_list.append({
+            'id': file.id,  # Use actual database ID
+            'name': os.path.basename(file.file.name),
+            'path': file.file.path
+        })
+    
+    context = {
+        'graph_type': graph_type,
+        'excel_files': files_list
+    }
+    return render(request, 'Excel_App/create_graph.html', context)
+
+def upload_file(request):
+    """
+    API endpoint for file upload.
+    """
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        file = request.FILES['excel_file']
+        
+        # Lire le fichier avec pandas
+        if file.name.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file)
+            
+        # Stocker le DataFrame dans la session
+        request.session['df_columns'] = df.columns.tolist()
+        request.session['file_path'] = file.name
+        
+        return JsonResponse({'columns': df.columns.tolist()})
+    return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+def create_graph(request):
+    """
+    API endpoint for graph creation.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            file_id = data.get('file_id')
+            
+            if file_id is None:
+                return JsonResponse({'error': 'No file selected'}, status=400)
+            
+            try:
+                excel_file = ExcelFile.objects.get(id=file_id)
+            except ExcelFile.DoesNotExist:
+                return JsonResponse({'error': 'Invalid file ID'}, status=400)
+            
+            file_path = excel_file.file.path
+                
+            # Get parameters
+            x_column = data.get('x_column')
+            y_column = data.get('y_column')
+            graph_type = data.get('graph_type', 'line')
+            title = data.get('title', 'Mon graphique')
+            color = data.get('color', '#0066ff')
+            line_style = data.get('line_style', 'solid')
+            
+            try:
+                # Read the file
+                if file_path.endswith('.csv'):
+                    # Try different encodings for CSV
+                    encodings = ['utf-8', 'latin1', 'cp1252']
+                    for encoding in encodings:
+                        try:
+                            df = pd.read_csv(file_path, encoding=encoding)
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                        except Exception as e:
+                            last_error = str(e)
+                        
+                elif file_path.endswith('.xlsx') or file_path.endswith('.xlsm'):
+                    df = pd.read_excel(file_path, engine='openpyxl')
+                    
+                elif file_path.endswith('.xls'):
+                    df = pd.read_excel(file_path, engine='xlrd')
+                    
+                else:
+                    # Unknown extension, try all methods
+                    try:
+                        df = pd.read_excel(file_path, engine='openpyxl')
+                    except Exception:
+                        try:
+                            df = pd.read_excel(file_path, engine='xlrd')
+                        except Exception:
+                            try:
+                                df = pd.read_csv(file_path)
+                            except Exception as e:
+                                return JsonResponse({'error': 'Unable to read file'}, status=400)
+                
+                # Validate columns exist
+                if x_column not in df.columns:
+                    return JsonResponse({'error': f'Column {x_column} not found in file'}, status=400)
+                if y_column not in df.columns:
+                    return JsonResponse({'error': f'Column {y_column} not found in file'}, status=400)
+                
+                # Handle bar graph
+                if graph_type == 'bar':
+                    # Convert y-column to numeric
+                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                    df = df.dropna(subset=[y_column])
+                    
+                    if df.empty:
+                        return JsonResponse({'error': 'No valid numeric data points'}, status=400)
+                    
+                    # Group by x_column and sum y_column values
+                    bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                    
+                    # Create bar trace
+                    trace = {
+                        'type': 'bar',
+                        'x': bar_data[x_column].tolist(),
+                        'y': bar_data[y_column].tolist(),
+                        'name': y_column,
+                        'marker': {'color': color}
+                    }
+                    
+                    # Add axis titles
+                    layout = {
+                        'title': {'text': title},
+                        'showlegend': True,
+                        'template': 'plotly_white',
+                        'xaxis': {'title': {'text': x_column}},
+                        'yaxis': {'title': {'text': y_column}}
+                    }
+                    
+                # Handle pie chart
+                elif graph_type == 'pie':
+                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                    df = df.dropna(subset=[y_column])
+                    pie_data = df.groupby(x_column)[y_column].sum()
+                    
+                    trace = {
+                        'type': 'pie',
+                        'labels': pie_data.index.tolist(),
+                        'values': pie_data.values.tolist(),
+                        'name': y_column,
+                        'marker': {'colors': [color]}
+                    }
+                    
+                    layout = {
+                        'title': {'text': title},
+                        'showlegend': True,
+                        'template': 'plotly_white'
+                    }
+                    
+                # Handle scatter plot
+                elif graph_type == 'scatter':
+                    # Convert both columns to numeric
+                    df[x_column] = pd.to_numeric(df[x_column], errors='coerce')
+                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                    df = df.dropna(subset=[x_column, y_column])
+                    
+                    if df.empty:
+                        return JsonResponse({'error': 'No valid numeric data points'}, status=400)
+                    
+                    trace = {
+                        'type': 'scatter',
+                        'mode': 'markers',  # This is crucial for scatter plots
+                        'x': df[x_column].tolist(),
+                        'y': df[y_column].tolist(),
+                        'name': y_column,
+                        'marker': {
+                            'color': color,
+                            'size': 8,
+                            'opacity': 0.7
+                        }
+                    }
+                    
+                    layout = {
+                        'title': {'text': title},
+                        'showlegend': True,
+                        'template': 'plotly_white',
+                        'xaxis': {'title': {'text': x_column}},
+                        'yaxis': {'title': {'text': y_column}}
+                    }
+                    
+                # Handle heatmap
+                elif graph_type == 'heatmap':
+                    try:
+                        # Convert both columns to numeric
+                        df[x_column] = pd.to_numeric(df[x_column], errors='coerce')
+                        df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                        df = df.dropna(subset=[x_column, y_column])
+                        
+                        if df.empty:
+                            return JsonResponse({'error': 'No valid numeric data points'}, status=400)
+                        
+                        # Create bins for both axes
+                        x_bins = pd.qcut(df[x_column], q=10, duplicates='drop')  # Create 10 quantile bins
+                        y_bins = pd.qcut(df[y_column], q=10, duplicates='drop')  # Create 10 quantile bins
+                        
+                        # Create a 2D histogram
+                        heatmap_data = pd.crosstab(y_bins, x_bins)
+                        
+                        # Create the heatmap trace
+                        trace = {
+                            'type': 'heatmap',
+                            'z': heatmap_data.values.tolist(),  # 2D array of values
+                            'x': [f'{x:.2f}' for x in heatmap_data.columns.categories.mid],  # X-axis labels
+                            'y': [f'{y:.2f}' for y in heatmap_data.index.categories.mid],    # Y-axis labels
+                            'colorscale': 'Viridis',
+                            'showscale': True,
+                            'hoverongaps': False
+                        }
+                        
+                        layout = {
+                            'title': {'text': title},
+                            'showlegend': False,
+                            'template': 'plotly_white',
+                            'xaxis': {
+                                'title': {'text': x_column},
+                                'side': 'bottom'
+                            },
+                            'yaxis': {
+                                'title': {'text': y_column},
+                                'autorange': 'reversed'  # This makes the heatmap display correctly
+                            },
+                            'coloraxis': {
+                                'colorbar': {
+                                    'title': 'Count',
+                                    'thickness': 20,
+                                    'len': 0.7
+                                }
+                            }
+                        }
+                    except Exception as e:
+                        return JsonResponse({'error': f'Error creating heatmap: {str(e)}'}, status=400)
+                    
+                # Handle other chart types
+                else:
+                    df[x_column] = pd.to_numeric(df[x_column], errors='coerce')
+                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                    df = df.dropna(subset=[x_column, y_column])
+                    
+                    if df.empty:
+                        return JsonResponse({'error': 'No valid numeric data points'}, status=400)
+                    
+                    trace = {
+                        'type': graph_type,
+                        'x': df[x_column].tolist(),
+                        'y': df[y_column].tolist(),
+                        'name': y_column
+                    }
+                    
+                    if graph_type == 'line':
+                        trace['line'] = {'color': color, 'dash': line_style}
+                    else:
+                        trace['marker'] = {'color': color}
+                    
+                    layout = {
+                        'title': {'text': title},
+                        'showlegend': True,
+                        'template': 'plotly_white',
+                        'xaxis': {'title': {'text': x_column}},
+                        'yaxis': {'title': {'text': y_column}}
+                    }
+                
+                # Create the final graph data structure
+                graph_data = {
+                    'data': [trace],
+                    'layout': layout
+                }
+                
+                return JsonResponse({'graph': graph_data})
+                
+            except Exception as e:
+                return JsonResponse({'error': f'Error creating graph: {str(e)}'}, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+def create_bar_graph(request):
+    """
+    API endpoint for bar graph creation.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            file_id = data.get('file_id')
+            
+            if file_id is None:
+                return JsonResponse({'error': 'No file selected'}, status=400)
+            
+            # Get file by ID from database
+            try:
+                excel_file = ExcelFile.objects.get(id=file_id)
+            except ExcelFile.DoesNotExist:
+                return JsonResponse({'error': 'Invalid file ID'}, status=400)
+            
+            file_path = excel_file.file.path
+                
+            # Get parameters
+            x_column = data.get('x_column')
+            y_column = data.get('y_column')
+            title = data.get('title', 'Mon graphique')
+            color = data.get('color', '#0066ff')
+            
+            try:
+                if file_path.endswith('.csv'):
+                    # Try different encodings for CSV
+                    encodings = ['utf-8', 'latin1', 'cp1252']
+                    df = None
+                    last_error = None
+                    for encoding in encodings:
+                        try:
+                            df = pd.read_csv(file_path, encoding=encoding)
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                        except Exception as e:
+                            last_error = str(e)
+                        
+                elif file_path.endswith('.xlsx') or file_path.endswith('.xlsm'):
+                    df = pd.read_excel(file_path, engine='openpyxl')
+                    
+                elif file_path.endswith('.xls'):
+                    df = pd.read_excel(file_path, engine='xlrd')
+                    
+                else:
+                    # Try all methods
+                    try:
+                        df = pd.read_excel(file_path, engine='openpyxl')
+                    except Exception:
+                        try:
+                            df = pd.read_excel(file_path, engine='xlrd')
+                        except Exception:
+                            try:
+                                df = pd.read_csv(file_path)
+                            except Exception as e:
+                                return JsonResponse({'error': 'Unable to read file'}, status=400)
+                
+                # Validate columns exist
+                if x_column not in df.columns:
+                    return JsonResponse({'error': f'Column {x_column} not found in file'}, status=400)
+                if y_column not in df.columns:
+                    return JsonResponse({'error': f'Column {y_column} not found in file'}, status=400)
+                
+                # Convert y-column to numeric
+                df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                df = df.dropna(subset=[y_column])
+                
+                if df.empty:
+                    return JsonResponse({'error': 'No valid numeric data points'}, status=400)
+                
+                # Group by x_column and sum y_column values
+                bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                
+                trace = {
+                    'type': 'bar',
+                    'x': bar_data[x_column].tolist(),
+                    'y': bar_data[y_column].tolist(),
+                    'name': y_column,
+                    'marker': {
+                        'color': color
+                    }
+                }
+                
+                layout = {
+                    'title': title,
+                    'showlegend': True,
+                    'template': 'plotly_white',
+                    'xaxis': {'title': {'text': x_column}},
+                    'yaxis': {'title': {'text': y_column}}
+                }
+                
+                graph_data = {
+                    'data': [trace],
+                    'layout': layout
+                }
+                
+                return JsonResponse({'graph': graph_data})
+                
+            except Exception as e:
+                return JsonResponse({'error': f'Error creating graph: {str(e)}'}, status=400)
+                
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

@@ -1,0 +1,1101 @@
+{% extends 'Excel_App/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Modern button styles */
+    .action-btn {
+        position: relative;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        transform: scale(1);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-btn::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-btn:active {
+        transform: scale(0.98);
+    }
+
+    .action-btn:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .calculate-btn {
+        background: linear-gradient(45deg, #2196F3, #00BCD4);
+        color: white;
+        margin-bottom: 12px;
+    }
+
+    .calculate-btn:hover {
+        background: linear-gradient(45deg, #1976D2, #0097A7);
+    }
+
+    .reset-btn {
+        background: linear-gradient(45deg, #757575, #9E9E9E);
+        color: white;
+    }
+
+    .reset-btn:hover {
+        background: linear-gradient(45deg, #616161, #757575);
+    }
+
+    /* Loading animation for calculate button */
+    @keyframes calculating {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    .calculating {
+        background-size: 200% 200%;
+        animation: calculating 2s ease infinite;
+        pointer-events: none;
+        opacity: 0.8;
+    }
+
+    /* Success animation */
+    @keyframes success-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+    }
+
+    .success {
+        animation: success-pulse 1.5s ease;
+    }
+
+    .calc-container {
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    }
+
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 2rem;
+    }
+
+    .controls-section {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .results-section {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto;
+        display: none; /* Hide by default */
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .results-section.show {
+        display: block;
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .chart-container {
+        width: 100%;
+        height: 500px;
+        margin: 2rem auto;
+        padding: 1.5rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    canvas#probabilityChart {
+        max-width: 100%;
+        height: 100% !important;
+    }
+
+    .calc-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    }
+
+    #notificationContainer {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+        min-width: 300px;
+    }
+
+    .alert {
+        margin-bottom: 10px;
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        padding-right: 30px !important;
+        position: relative;
+    }
+
+    .alert .btn-close {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        padding: 0.25rem !important;
+        font-size: 0.8rem !important;
+        width: 0.8rem !important;
+        height: 0.8rem !important;
+        opacity: 0.5;
+        transition: opacity 0.2s ease;
+    }
+
+    .alert .btn-close:hover {
+        opacity: 0.8;
+    }
+
+    .alert-content {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert i {
+        font-size: 1.1em;
+    }
+
+    .file-selector, .column-selector, .param-section {
+        width: 100%;
+        margin-bottom: 2rem;
+        padding: 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+
+    .form-select, .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    .form-select:focus, .form-control:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .form-select[multiple] {
+        height: auto;
+        min-height: 120px;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 1.5rem;
+    }
+
+    .calc-btn {
+        width: 100%;
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 1rem;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 2rem;
+    }
+
+    .calc-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 102, 255, 0.2);
+    }
+
+    .calc-btn:active {
+        transform: translateY(1px);
+    }
+
+    .distribution-info {
+        width: 100%;
+        max-width: 1000px;
+        margin: 0 auto 2rem;
+        padding: 1.5rem;
+        background: rgba(13, 202, 240, 0.1);
+        border-radius: 15px;
+        border-left: 4px solid rgb(13, 202, 240);
+    }
+
+    .param-input {
+        background: white;
+        border: 2px solid rgba(0, 102, 255, 0.1);
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .param-input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+        outline: none;
+    }
+
+    .result-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-top: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .param-section {
+        display: none;
+    }
+
+    .param-section.active {
+        display: block;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .distribution-info ul {
+        list-style-type: none;
+        padding-left: 0;
+    }
+
+    .distribution-info li {
+        position: relative;
+        padding-left: 1.5rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.5;
+    }
+
+    .distribution-info li:before {
+        content: "•";
+        color: var(--bs-info);
+        position: absolute;
+        left: 0;
+        font-weight: bold;
+    }
+
+    .distribution-info .title {
+        color: var(--bs-info);
+        font-weight: 600;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .distribution-info .title i {
+        margin-right: 0.5rem;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div id="notificationContainer"></div>
+
+<div class="calc-container">
+    <div class="main-content">
+        <h2 class="mb-4">{{ distribution_name }} - Calculateur de Probabilité</h2>
+        <!-- Distribution-specific information -->
+        {% if distribution_type == 'binomial' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution Binomiale
+            </div>
+            <ul>
+                <li>Utilisée pour compter le nombre de succès dans n essais indépendants</li>
+                <li>n doit être un entier positif (nombre d'essais)</li>
+                <li>p doit être entre 0 et 1 (probabilité de succès)</li>
+                <li>Exemple: Nombre de faces obtenues en lançant une pièce 10 fois</li>
+            </ul>
+        </div>
+        {% elif distribution_type == 'poisson' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution de Poisson
+            </div>
+            <ul>
+                <li>Utilisée pour modéliser le nombre d'événements dans un intervalle fixe</li>
+                <li>λ (lambda) doit être positif (taux moyen d'événements)</li>
+                <li>Exemple: Nombre de clients arrivant dans un magasin par heure</li>
+            </ul>
+        </div>
+        {% elif distribution_type == 'normal' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution Normale
+            </div>
+            <ul>
+                <li>Utilisée pour des données symétriques autour d'une moyenne</li>
+                <li>μ (moyenne) peut être n'importe quel nombre réel</li>
+                <li>σ (écart-type) doit être positif</li>
+                <li>Exemple: Tailles d'une population, notes d'examen</li>
+            </ul>
+        </div>
+        {% elif distribution_type == 'bernoulli' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution de Bernoulli
+            </div>
+            <ul>
+                <li>Utilisée pour modéliser un seul essai avec succès/échec</li>
+                <li>p doit être entre 0 et 1 (probabilité de succès)</li>
+                <li>Exemple: Gagner (1) ou perdre (0) à un jeu</li>
+            </ul>
+        </div>
+        {% elif distribution_type == 'uniform' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution Uniforme
+            </div>
+            <ul>
+                <li>Utilisée quand tous les résultats sont également probables</li>
+                <li>a doit être inférieur à b</li>
+                <li>Exemple: Temps d'attente aléatoire entre a et b minutes</li>
+            </ul>
+        </div>
+        {% elif distribution_type == 'exponential' %}
+        <div class="distribution-info">
+            <div class="title">
+                <i class="fas fa-info-circle"></i>
+                Distribution Exponentielle
+            </div>
+            <ul>
+                <li>Utilisée pour modéliser le temps entre des événements</li>
+                <li>λ (lambda) doit être positif (taux d'événements)</li>
+                <li>Exemple: Temps d'attente jusqu'au prochain client</li>
+            </ul>
+        </div>
+        {% endif %}
+
+        <div id="notificationContainer"></div>
+
+        <div class="controls-section">
+            <div class="file-selector">
+                <h4 class="section-title">Sélectionner un fichier Excel</h4>
+                <div class="form-group">
+                    <select class="form-select" id="fileSelect">
+                        <option value="">Choisir un fichier...</option>
+                        {% for file in excel_files %}
+                        <option value="{{ file.id }}">{{ file.file_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="column-selector">
+                <h4 class="section-title">Sélection des Colonnes</h4>
+                <div class="form-group">
+                    <select class="form-select" id="columnSelect" multiple>
+                        <option value="">Sélectionnez les colonnes...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="param-section" id="binomialParams">
+                <h4 class="section-title">Paramètres de la Distribution Binomiale</h4>
+                <div class="form-group">
+                    <label class="form-label">Nombre d'essais (n)</label>
+                    <input type="number" class="form-control" id="binomialN">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Probabilité de succès (p)</label>
+                    <input type="number" step="0.01" min="0" max="1" class="form-control" id="binomialP">
+                </div>
+            </div>
+
+            <div class="param-section" id="poissonParams">
+                <h4 class="section-title">Paramètres de la Distribution de Poisson</h4>
+                <div class="form-group">
+                    <label class="form-label">Lambda (λ)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="poissonLambda">
+                </div>
+            </div>
+
+            <div class="param-section" id="normalParams">
+                <h4 class="section-title">Paramètres de la Distribution Normale</h4>
+                <div class="form-group">
+                    <label class="form-label">Moyenne (μ)</label>
+                    <input type="number" step="0.01" class="form-control" id="normalMean">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Écart-type (σ)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="normalStd">
+                </div>
+            </div>
+
+            <div class="param-section" id="bernoulliParams">
+                <h4 class="section-title">Paramètres de la Distribution de Bernoulli</h4>
+                <div class="form-group">
+                    <label class="form-label">Probabilité de succès (p)</label>
+                    <input type="number" step="0.01" min="0" max="1" class="form-control" id="bernoulliP">
+                </div>
+            </div>
+
+            <div class="param-section" id="uniformParams">
+                <h4 class="section-title">Paramètres de la Distribution Uniforme</h4>
+                <div class="form-group">
+                    <label class="form-label">Paramètre a</label>
+                    <input type="number" step="0.01" class="form-control" id="uniformA">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Paramètre b</label>
+                    <input type="number" step="0.01" class="form-control" id="uniformB">
+                </div>
+            </div>
+
+            <div class="param-section" id="exponentialParams">
+                <h4 class="section-title">Paramètres de la Distribution Exponentielle</h4>
+                <div class="form-group">
+                    <label class="form-label">Lambda (λ)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" id="exponentialLambda">
+                </div>
+            </div>
+
+            <div class="form-group mb-4">
+                <button id="calculateBtn" class="action-btn calculate-btn w-100">
+                    <span class="btn-text">Calculer la Probabilité</span>
+                </button>
+                <button id="resetBtn" class="action-btn reset-btn w-100">
+                    <span class="btn-text">Réinitialiser</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="result-card">
+                <h4 class="mb-3">Résultats</h4>
+                <div class="results-container">
+                    <!-- Main probability result -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <h5 class="text-primary mb-2">Probabilité Calculée</h5>
+                        <div id="probabilityResult" class="h3 mb-0"></div>
+                    </div>
+
+                    <!-- Confidence interval -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <h5 class="text-primary mb-2">Intervalle de Confiance (95%)</h5>
+                        <div id="confidenceInterval" class="h5 mb-0"></div>
+                    </div>
+
+                    <!-- Data summary -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <h5 class="text-primary mb-2">Résumé des Données</h5>
+                        <div id="dataSummary" class="mb-0">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Nombre d'observations:</strong>
+                                    <div id="observationCount"></div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Moyenne:</strong>
+                                    <div id="dataMean"></div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Écart-type:</strong>
+                                    <div id="dataStd"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Distribution parameters -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <h5 class="text-primary mb-2">Paramètres de la Distribution</h5>
+                        <div id="distributionParams"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="probabilityChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileSelect = document.getElementById('fileSelect');
+    const columnSelect = document.getElementById('columnSelect');
+    const calculateBtn = document.getElementById('calculateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    let probabilityChart = null;
+
+    // Notification functions
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade`;
+        notification.innerHTML = `
+            <div class="alert-content">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'exclamation-circle'}"></i>
+                <div>${message}</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        const container = document.getElementById('notificationContainer');
+        container.appendChild(notification);
+
+        // Trigger reflow to enable animation
+        notification.offsetHeight;
+        notification.classList.add('show');
+
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
+    }
+
+    // Show parameters based on distribution type
+    const distributionType = '{{ distribution_type }}';
+    const paramSection = document.getElementById(distributionType + 'Params');
+    if (paramSection) {
+        paramSection.classList.add('active');
+    }
+
+    // Load columns when file is selected
+    fileSelect.addEventListener('change', async function() {
+        const fileId = this.value;
+        columnSelect.innerHTML = '<option value="">Chargement des colonnes...</option>';
+        columnSelect.disabled = true;
+
+        if (!fileId) {
+            columnSelect.innerHTML = '<option value="">Sélectionnez les colonnes...</option>';
+            columnSelect.disabled = true;
+            return;
+        }
+
+        try {
+            const response = await fetch(`/get_file_columns/${fileId}/`);
+            if (!response.ok) {
+                throw new Error('Erreur lors du chargement des colonnes');
+            }
+
+            const data = await response.json();
+            
+            columnSelect.innerHTML = '';
+            if (data.columns && data.columns.length > 0) {
+                data.columns.forEach(column => {
+                    const option = document.createElement('option');
+                    // Ensure column value is a string
+                    option.value = String(column);
+                    option.textContent = String(column);
+                    columnSelect.appendChild(option);
+                });
+                columnSelect.disabled = false;
+                showNotification('Colonnes chargées avec succès', 'success');
+            } else {
+                columnSelect.innerHTML = '<option value="">Aucune colonne numérique trouvée</option>';
+                showNotification('Aucune colonne numérique trouvée dans le fichier', 'warning');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            columnSelect.innerHTML = '<option value="">Erreur de chargement des colonnes</option>';
+            showNotification('Erreur lors du chargement des colonnes', 'error');
+        }
+    });
+
+    // Add flag to track if calculation has been performed
+    let hasCalculated = false;
+
+    // Add column change event listener
+    columnSelect.addEventListener('change', function() {
+        if (!hasCalculated) {
+            return;
+        }
+        // Just hide the previous results when column changes
+        hideResults();
+    });
+
+    function showResults() {
+        const resultsSection = document.querySelector('.results-section');
+        resultsSection.style.display = 'block';
+        // Force reflow
+        resultsSection.offsetHeight;
+        resultsSection.classList.add('show');
+    }
+
+    function hideResults() {
+        try {
+            const resultsSection = document.querySelector('.results-section');
+            if (resultsSection) {
+                resultsSection.classList.remove('show');
+                setTimeout(() => {
+                    resultsSection.style.display = 'none';
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Error hiding results:', error);
+        }
+    }
+
+    async function animateCalculation() {
+        const calculateBtn = document.getElementById('calculateBtn');
+        calculateBtn.classList.add('calculating');
+        calculateBtn.disabled = true;
+        
+        try {
+            await calculateProbability();
+            hasCalculated = true;
+            calculateBtn.classList.remove('calculating');
+            calculateBtn.classList.add('success');
+            setTimeout(() => {
+                calculateBtn.classList.remove('success');
+            }, 1500);
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Une erreur est survenue', 'error');
+        } finally {
+            calculateBtn.classList.remove('calculating');
+            calculateBtn.disabled = false;
+        }
+    }
+
+    function animateReset() {
+        resetBtn.classList.add('clicked');
+        setTimeout(() => {
+            resetBtn.classList.remove('clicked');
+        }, 200);
+    }
+
+    // Function to get and validate distribution parameters
+    function getDistributionParameters() {
+        const distributionType = '{{ distribution_type }}';
+        let params = {};
+        let validationError = null;
+
+        switch (distributionType) {
+            case 'binomial':
+                const n = parseInt(document.getElementById('binomialN').value);
+                const p = parseFloat(document.getElementById('binomialP').value);
+                if (isNaN(n) || n <= 0) {
+                    validationError = 'n doit être un entier positif';
+                } else if (isNaN(p) || p < 0 || p > 1) {
+                    validationError = 'p doit être entre 0 et 1';
+                } else {
+                    params.n = n;
+                    params.p = p;
+                }
+                break;
+            case 'poisson':
+                const lambda = parseFloat(document.getElementById('poissonLambda').value);
+                if (isNaN(lambda) || lambda <= 0) {
+                    validationError = 'λ doit être positif';
+                } else {
+                    params.lambda = lambda;
+                }
+                break;
+            case 'normal':
+                const mean = parseFloat(document.getElementById('normalMean').value);
+                const std = parseFloat(document.getElementById('normalStd').value);
+                if (isNaN(mean)) {
+                    validationError = 'La moyenne doit être un nombre';
+                } else if (isNaN(std) || std <= 0) {
+                    validationError = 'L\'écart-type doit être positif';
+                } else {
+                    params.mean = mean;
+                    params.std = std;
+                }
+                break;
+            case 'bernoulli':
+                const bernP = parseFloat(document.getElementById('bernoulliP').value);
+                if (isNaN(bernP) || bernP < 0 || bernP > 1) {
+                    validationError = 'p doit être entre 0 et 1';
+                } else {
+                    params.p = bernP;
+                }
+                break;
+            case 'uniform':
+                const a = parseFloat(document.getElementById('uniformA').value);
+                const b = parseFloat(document.getElementById('uniformB').value);
+                if (isNaN(a) || isNaN(b)) {
+                    validationError = 'a et b doivent être des nombres';
+                } else if (a >= b) {
+                    validationError = 'a doit être inférieur à b';
+                } else {
+                    params.a = a;
+                    params.b = b;
+                }
+                break;
+            case 'exponential':
+                const expLambda = parseFloat(document.getElementById('exponentialLambda').value);
+                if (isNaN(expLambda) || expLambda <= 0) {
+                    validationError = 'λ doit être positif';
+                } else {
+                    params.lambda = expLambda;
+                }
+                break;
+        }
+
+        if (validationError) {
+            showNotification(validationError, 'warning');
+            return null;
+        }
+
+        return params;
+    }
+
+    // Function to update results display
+    function updateResults(result) {
+        document.getElementById('probabilityResult').textContent = 
+            `Probabilité: ${(result.probability * 100).toFixed(2)}%`;
+        document.getElementById('confidenceInterval').textContent = 
+            `Intervalle de confiance (95%): [${result.confidence_interval[0].toFixed(2)}, ${result.confidence_interval[1].toFixed(2)}]`;
+        
+        // Display data summary
+        document.getElementById('observationCount').textContent = result.observation_count;
+        document.getElementById('dataMean').textContent = result.data_mean.toFixed(2);
+        document.getElementById('dataStd').textContent = result.data_std.toFixed(2);
+
+        // Display distribution parameters
+        document.getElementById('distributionParams').innerHTML = '';
+        for (const [key, value] of Object.entries(result.distribution_params)) {
+            const paramDiv = document.createElement('div');
+            paramDiv.textContent = `${key}: ${value}`;
+            document.getElementById('distributionParams').appendChild(paramDiv);
+        }
+    }
+
+    // Calculate probability
+    async function calculateProbability() {
+        const fileId = fileSelect.value;
+        const selectedColumns = Array.from(columnSelect.selectedOptions).map(option => String(option.value));
+        
+        if (!fileId || selectedColumns.length === 0) {
+            showNotification('Veuillez sélectionner un fichier et au moins une colonne', 'warning');
+            hideResults();
+            return;
+        }
+
+        // Get and validate distribution parameters
+        const params = getDistributionParameters();
+        if (!params) {
+            hideResults();
+            return;
+        }
+
+        try {
+            const response = await fetch('/calculate_probability/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    file_id: fileId,
+                    columns: selectedColumns,
+                    distribution_type: '{{ distribution_type }}',
+                    ...params
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erreur lors du calcul');
+            }
+
+            const result = await response.json();
+            
+            if (result.error) {
+                showNotification(result.error, 'error');
+                hideResults();
+                return;
+            }
+
+            // Show and update results
+            showResults();
+            updateResults(result);
+            updateChart(result.data);
+            showNotification('Calcul effectué avec succès', 'success');
+
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Une erreur est survenue lors du calcul', 'error');
+            hideResults();
+        }
+    }
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Update the hideResults function to be more robust
+    function hideResults() {
+        try {
+            const resultsSection = document.querySelector('.results-section');
+            if (resultsSection) {
+                resultsSection.classList.remove('show');
+                setTimeout(() => {
+                    resultsSection.style.display = 'none';
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Error hiding results:', error);
+        }
+    }
+
+    function updateChart(data) {
+        const ctx = document.getElementById('probabilityChart').getContext('2d');
+        
+        // Destroy existing chart if it exists
+        if (probabilityChart) {
+            probabilityChart.destroy();
+        }
+        
+        // Create new chart
+        probabilityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.x,
+                datasets: [{
+                    label: 'Distribution de Probabilité',
+                    data: data.y,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Distribution de Probabilité',
+                        font: {
+                            size: 18,
+                            weight: 'bold'
+                        },
+                        padding: 20
+                    },
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 14
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Valeurs',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Probabilité',
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        beginAtZero: true
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                }
+            }
+        });
+    }
+
+    // Add event listeners
+    calculateBtn.addEventListener('click', animateCalculation);
+    resetBtn.addEventListener('click', () => {
+        animateReset();
+        resetForm();
+    });
+
+    function resetForm() {
+        try {
+            // Check if there's anything to reset
+            const hasFileSelected = fileSelect.value !== '';
+            const hasColumnsSelected = columnSelect.selectedOptions.length > 0;
+            const hasParamsFilled = Array.from(document.querySelectorAll('.param-section input'))
+                .some(input => input.value !== '');
+            const hasResults = document.querySelector('.results-section').style.display !== 'none';
+            
+            if (!hasFileSelected && !hasColumnsSelected && !hasParamsFilled && !hasResults) {
+                showNotification('Rien à réinitialiser - Le formulaire est déjà vide', 'warning');
+                return;
+            }
+
+            let resetDetails = [];
+
+            // Reset file selection
+            if (hasFileSelected) {
+                fileSelect.value = '';
+                resetDetails.push('fichier');
+            }
+            
+            // Reset column selection completely
+            if (columnSelect) {
+                // Clear all options
+                columnSelect.innerHTML = '';
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = 'Sélectionnez les colonnes...';
+                columnSelect.appendChild(defaultOption);
+                // Disable the select
+                columnSelect.disabled = true;
+                if (hasColumnsSelected) {
+                    resetDetails.push('colonnes');
+                }
+            }
+            
+            // Reset distribution parameters
+            let paramsReset = false;
+            const paramInputs = document.querySelectorAll('.param-section input');
+            paramInputs.forEach(input => {
+                if (input.value !== '') {
+                    input.value = '';
+                    paramsReset = true;
+                }
+            });
+            if (paramsReset) {
+                resetDetails.push('paramètres');
+            }
+            
+            // Hide results if visible
+            if (hasResults) {
+                hideResults();
+                resetDetails.push('résultats');
+            }
+            
+            // Clear chart if exists
+            if (window.probabilityChart) {
+                try {
+                    window.probabilityChart.destroy();
+                    window.probabilityChart = null;
+                    resetDetails.push('graphique');
+                    
+                    // Clear canvas
+                    const chartCanvas = document.getElementById('probabilityChart');
+                    if (chartCanvas) {
+                        const ctx = chartCanvas.getContext('2d');
+                        ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+                    }
+                } catch (chartError) {
+                    console.error('Error clearing chart:', chartError);
+                }
+            }
+            
+            // Reset calculation flag
+            hasCalculated = false;
+
+            // Show success message with details if anything was reset
+            if (resetDetails.length > 0) {
+                const resetMessage = `Réinitialisation effectuée: ${resetDetails.join(', ')}`;
+                showNotification(resetMessage, 'success');
+            }
+
+        } catch (error) {
+            console.error('Error during reset:', error);
+            showNotification(`Erreur lors de la réinitialisation: ${error.message}`, 'error');
+        }
+    }
+    
+    // Hide results on page load
+    hideResults();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends 'Excel_App/base.html' %}
+
+{% block content %}
+<style>
+    .graphs-container {
+        padding: 2rem;
+    }
+    
+    .graph-card {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        position: relative;
+        animation: cardFloat 6s ease-in-out infinite;
+    }
+
+    @keyframes cardFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-5px) rotate(0.5deg); }
+        75% { transform: translateY(5px) rotate(-0.5deg); }
+    }
+
+    .graph-card:hover {
+        animation: none;
+        transform: translateY(-10px) scale(1.02);
+        box-shadow: 0 15px 45px rgba(31, 38, 135, 0.2);
+    }
+
+    .graph-card:hover::before {
+        transform: translateX(100%);
+    }
+
+    .graph-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.4), transparent 70%);
+        transition: transform 0.7s;
+        transform: translateX(-100%);
+    }
+
+    .graph-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+
+    .graph-card:hover::after {
+        opacity: 0.1;
+    }
+
+    .graph-card .card-body {
+        padding: 2.5rem 1.8rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .graph-icon {
+        font-size: 3.5rem;
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1.8rem;
+        transform-origin: center;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        animation: iconRotate 4s ease-in-out infinite;
+    }
+
+    @keyframes iconRotate {
+        0% { transform: rotate(-2deg); }
+        50% { transform: rotate(2deg); }
+        100% { transform: rotate(-2deg); }
+    }
+
+    .graph-card:hover .graph-icon {
+        animation: iconPulse 2s infinite;
+    }
+
+    @keyframes iconPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    .graph-card .card-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        color: var(--primary-dark);
+    }
+
+    .graph-card .card-text {
+        color: #666;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+
+    .graph-btn {
+        background: linear-gradient(45deg, var(--primary) 0%, var(--primary-light) 100%);
+        border: none;
+        padding: 0.8rem 2rem;
+        color: white;
+        border-radius: 50px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 102, 255, 0.2);
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .graph-btn:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 102, 255, 0.3);
+        color: white;
+        text-decoration: none !important;
+    }
+</style>
+
+<div class="graphs-container">
+    <h2 class="text-center mb-4" style="color: var(--primary-dark); font-weight: 700; font-size: 2.5rem;">Data Visualization</h2>
+    
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-bar graph-icon"></i>
+                    <h5 class="card-title">Bar Plot</h5>
+                    <p class="card-text">Create bar charts to compare categorical data or show data distribution.</p>
+                    <button class="graph-btn" onclick="selectGraph('barplot')">Create Bar Plot</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line graph-icon"></i>
+                    <h5 class="card-title">Line Plot</h5>
+                    <p class="card-text">Visualize trends and patterns over time or sequential data.</p>
+                    <button class="graph-btn" onclick="selectGraph('lineplot')">Create Line Plot</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-braille graph-icon"></i>
+                    <h5 class="card-title">Scatter Plot</h5>
+                    <p class="card-text">Explore relationships between two variables in your data.</p>
+                    <button class="graph-btn" onclick="selectGraph('scatterplot')">Create Scatter Plot</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-pie graph-icon"></i>
+                    <h5 class="card-title">Pie Chart</h5>
+                    <p class="card-text">Show proportions and percentages of categorical data.</p>
+                    <button class="graph-btn" onclick="selectGraph('piechart')">Create Pie Chart</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-th graph-icon"></i>
+                    <h5 class="card-title">Histogram</h5>
+                    <p class="card-text">Visualize the distribution of numerical data.</p>
+                    <button class="graph-btn" onclick="selectGraph('histogram')">Create Histogram</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-box graph-icon"></i>
+                    <h5 class="card-title">Box Plot</h5>
+                    <p class="card-text">Show the distribution of data through quartiles.</p>
+                    <button class="graph-btn" onclick="selectGraph('boxplot')">Create Box Plot</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-th-large graph-icon"></i>
+                    <h5 class="card-title">Heatmap</h5>
+                    <p class="card-text">Visualize data patterns using color intensity in a matrix format.</p>
+                    <button class="graph-btn" onclick="selectGraph('heatmap')">Create Heatmap</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="graph-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-wave-square graph-icon"></i>
+                    <h5 class="card-title">Violin Plot</h5>
+                    <p class="card-text">Show probability density of data at different values.</p>
+                    <button class="graph-btn" onclick="selectGraph('violinplot')">Create Violin Plot</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function selectGraph(graphType) {
+        // Map the button graph types to the actual graph types
+        const graphTypeMap = {
+            'barplot': 'bar',
+            'lineplot': 'line',
+            'scatterplot': 'scatter',
+            'piechart': 'pie',
+            'histogram': 'histogram',
+            'boxplot': 'box',
+            'heatmap': 'heatmap',
+            'violinplot': 'violin'
+        };
+        
+        // Get the actual graph type from the map
+        const actualType = graphTypeMap[graphType] || 'line';
+        
+        // Redirect to create graph page with the selected type
+        window.location.href = `/create_graph/?type=${actualType}`;
+    }
+</script>
+{% endblock %}
