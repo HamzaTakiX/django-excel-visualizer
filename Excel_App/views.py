@@ -724,10 +724,8 @@ def save_file_data(request, file_index):
             file_ext = os.path.splitext(excel_file.file.path)[1].lower()
             
             # Save based on file extension
-            if file_ext == '.xlsx':
-                df.to_excel(excel_file.file.path, index=False, engine='openpyxl')
-            elif file_ext == '.xls':
-                df.to_excel(excel_file.file.path, index=False, engine='xlwt')
+            if file_ext in ['.xlsx', '.xls']:
+                df.to_excel(excel_file.file.path, index=False, engine='xlsxwriter')
             else:  # Default to CSV
                 df.to_csv(excel_file.file.path, index=False)
             
@@ -763,7 +761,7 @@ def save_file_data(request, file_index):
     finally:
         print("=== End save_changes ===")
 
-@require_http_methods(["GET"])
+@require_http_methods(["POST", "GET"])
 def download_file(request, file_index):
     """
     Download the Excel file with format conversion.
@@ -781,26 +779,33 @@ def download_file(request, file_index):
         
         # Get the Excel file
         excel_file = ExcelFile.objects.get(id=file_index)
-        file_path = excel_file.file.path
-        
-        if not os.path.exists(file_path):
-            return JsonResponse({'error': 'File not found'}, status=404)
-            
-        # Read the file with pandas
-        try:
-            df = pd.read_excel(file_path, engine='openpyxl')
-        except Exception:
-            try:
-                df = pd.read_excel(file_path, engine='xlrd')
-            except Exception:
-                try:
-                    df = pd.read_csv(file_path)
-                except Exception:
-                    return JsonResponse({'error': 'Unable to read file'}, status=400)
-        
-        # Create a response with the appropriate content type and conversion
         filename = os.path.splitext(excel_file.file_name)[0]
         
+        # Get data from POST request if available, otherwise read from file
+        if request.method == 'POST':
+            try:
+                data = json.loads(request.body)
+                df = pd.DataFrame(data.get('data', []))
+            except (json.JSONDecodeError, KeyError):
+                return JsonResponse({'error': 'Invalid data format'}, status=400)
+        else:
+            file_path = excel_file.file.path
+            if not os.path.exists(file_path):
+                return JsonResponse({'error': 'File not found'}, status=404)
+                
+            # Read the file with pandas
+            try:
+                df = pd.read_excel(file_path, engine='openpyxl')
+            except Exception:
+                try:
+                    df = pd.read_excel(file_path, engine='xlrd')
+                except Exception:
+                    try:
+                        df = pd.read_csv(file_path)
+                    except Exception:
+                        return JsonResponse({'error': 'Unable to read file'}, status=400)
+        
+        # Create a response with the appropriate content type and conversion
         if format == 'xlsx':
             response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
@@ -919,12 +924,9 @@ def save_changes(request, file_index):
         file_ext = os.path.splitext(file_path)[1].lower()
         try:
             print(f"Saving file with extension: {file_ext}")
-            if file_ext == '.xlsx':
-                print("Saving as XLSX...")
-                df.to_excel(file_path, index=False, engine='openpyxl')
-            elif file_ext == '.xls':
-                print("Saving as XLS...")
-                df.to_excel(file_path, index=False, engine='xlwt')
+            if file_ext in ['.xlsx', '.xls']:
+                print("Saving as Excel with xlsxwriter...")
+                df.to_excel(file_path, index=False, engine='xlsxwriter')
             else:  # Default to CSV
                 print("Saving as CSV...")
                 df.to_csv(file_path, index=False)

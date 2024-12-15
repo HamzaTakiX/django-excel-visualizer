@@ -194,7 +194,7 @@
     }
 
     .table thead th {
-        background: #0984e3;
+        background: linear-gradient(45deg, var(--main-color), #4990ff);
         color: white;
         padding: 15px;
         font-weight: 500;
@@ -705,35 +705,15 @@
     }
 
     /* Table Styles */
-    .table-responsive-container {
-        width: 100%;
+    .table-responsive {
         overflow-x: auto;
-        margin-bottom: 1rem;
-        scrollbar-width: thin;
+        margin-top: 1rem;
     }
 
-    .table-responsive-container::-webkit-scrollbar {
-        height: 8px;
-        background: transparent;
-    }
-
-    .table-responsive-container::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
-    }
-
-    .table-responsive-container:not(:hover)::-webkit-scrollbar-thumb {
-        background: transparent;
-    }
-
-    .data-table {
+    table {
         width: 100%;
-        white-space: nowrap;
-    }
-
-    .data-table td, 
-    .data-table th {
-        min-width: 100px; /* Ensures columns don't get too narrow */
+        border-collapse: collapse;
+        margin-bottom: 1rem;
     }
 
     th {
@@ -1030,11 +1010,14 @@
     }
 
     @keyframes pulseIcon {
-        0%, 100% {
+        0% {
             transform: scale(1);
         }
         50% {
             transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
         }
     }
 
@@ -1234,13 +1217,28 @@
         margin-bottom: 0;
     }
 
+    .data-table thead th {
+        background: linear-gradient(135deg, var(--main-color), #74b9ff);
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        padding: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        border: none;
+    }
+
     .data-table tbody tr {
         transition: all 0.2s ease;
     }
 
     .data-table tbody tr:hover {
-        background-color: rgba(128, 161, 212, 0.08);
-        transform: scale(1.002);
+        background-color: rgba(27, 115, 251, 0.05);
+        transform: scale(1.001);
     }
 
     .data-table td {
@@ -1248,7 +1246,7 @@
         border: none;
         border-bottom: 1px solid #f0f0f0;
         font-size: 0.95rem;
-        color: #2c3e50;
+        color: #2d3436;
         vertical-align: middle;
     }
 
@@ -1541,7 +1539,6 @@
     /* Reload Button Styles */
     .reload-btn {
         background: linear-gradient(135deg, #57E0BF, #57E0BF);
-        box-shadow: 0 8px 15px rgba(27, 115, 251, 0.2);
         color: white;
         border: none;
         padding: 8px 16px;
@@ -2083,7 +2080,7 @@
         margin-bottom: 0;
         font-weight: 500;
         color: #495057;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         transition: all 0.3s ease;
     }
 
@@ -2136,15 +2133,15 @@
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     .form-select:hover {
-        border-color: var(--main-color);
+        border-color: #1b73fb;
     }
 
     .form-select:focus {
-        border-color: var(--main-color);
+        border-color: #1b73fb;
         box-shadow: 0 0 0 3px rgba(27, 115, 251, 0.2);
         outline: none;
     }
@@ -2207,8 +2204,8 @@
     }
 
     .statistics-table thead th {
-        background: #0984e3;
-        color: white;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        color: #495057;
         font-weight: 600;
         text-transform: uppercase;
         font-size: 12px;
@@ -2234,267 +2231,6 @@
         border-radius: 3px;
         font-weight: 500;
     }
-
-    .table-container {
-        overflow: hidden;
-    }
-
-    .table-responsive-container {
-        width: 100%;
-        overflow-x: auto;
-        margin-bottom: 1rem;
-    }
-
-    /* Hide scrollbar by default */
-    .table-responsive-container::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Show scrollbar only when container is being scrolled */
-    .table-responsive-container:hover::-webkit-scrollbar,
-    .table-responsive-container:focus::-webkit-scrollbar,
-    .table-responsive-container:active::-webkit-scrollbar {
-        display: block;
-        height: 8px;
-    }
-
-    .table-responsive-container::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
-    }
-
-    .data-table {
-        width: 100%;
-        margin-bottom: 0;
-    }
-
-    /* Data Table Container */
-    .table-container {
-        width: 100%;
-        position: relative;
-    }
-
-    /* Remove previous responsive container styles */
-    .table-responsive-container {
-        display: none;
-    }
-
-    /* Table wrapper */
-    .table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* Hide scrollbar by default */
-    .table-wrapper::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Show scrollbar only when scrolling is needed */
-    @media (max-width: 100%) {
-        .table-wrapper::-webkit-scrollbar {
-            display: block;
-            height: 8px;
-        }
-
-        .table-wrapper::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .table-wrapper::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-    }
-
-    .data-table {
-        width: 100%;
-        margin-bottom: 0;
-    }
-
-    /* Common table styles */
-    .table-container {
-        width: 100%;
-        position: relative;
-    }
-
-    /* Statistics table styles */
-    .statistics-table-wrapper {
-        width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .statistics-table-wrapper::-webkit-scrollbar {
-        display: none;
-    }
-
-    @media (max-width: 100%) {
-        .statistics-table-wrapper::-webkit-scrollbar {
-            display: block;
-            height: 8px;
-        }
-
-        .statistics-table-wrapper::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .statistics-table-wrapper::-webkit-scrollbar-thumb {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-    }
-
-    .statistics-table,
-    .data-table {
-        width: 100%;
-        margin-bottom: 0;
-    }
-
-    /* Modern Data Table Styles */
-    .data-table-wrapper {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-
-    .data-table-wrapper:hover {
-        box-shadow: 0 12px 40px rgba(0,0,0,0.08);
-        transform: translateY(-2px);
-    }
-
-    .data-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .data-table thead th {
-        background: #0984e3;
-        color: white;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-        padding: 1.2rem;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-        letter-spacing: 0.5px;
-        border-bottom: 3px solid transparent;
-    }
-
-    .data-table thead th:hover {
-        background: #3489c9;
-        border-bottom: 3px solid #5577b4;
-    }
-    .statistics-table thead th:hover {
-        background: #6b93cf;
-        border-bottom: 3px solid #7791c1;
-    }
-
-    .data-table tbody tr {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-
-    .data-table tbody tr:hover {
-        background: rgba(128, 161, 212, 0.08);
-        transform: scale(1.002);
-    }
-
-    .data-table tbody td {
-        padding: 1rem;
-        border: none;
-        border-bottom: 1px solid #f0f0f0;
-        font-size: 0.95rem;
-        color: #2c3e50;
-        transition: all 0.3s ease;
-    }
-
-    .data-table tbody tr:hover td {
-        color: #1a365d;
-    }
-
-    /* Row appear animation */
-    @keyframes tableRowIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .data-table tbody tr {
-        animation: tableRowIn 0.3s ease-out forwards;
-        opacity: 0;
-    }
-
-    .data-table tbody tr:nth-child(1) { animation-delay: 0.1s; }
-    .data-table tbody tr:nth-child(2) { animation-delay: 0.15s; }
-    .data-table tbody tr:nth-child(3) { animation-delay: 0.2s; }
-    .data-table tbody tr:nth-child(4) { animation-delay: 0.25s; }
-    .data-table tbody tr:nth-child(5) { animation-delay: 0.3s; }
-    .data-table tbody tr:nth-child(n+6) { animation-delay: 0.35s; }
-
-    /* Cell highlight effect */
-    .data-table td:hover {
-        background: rgba(128, 161, 212, 0.12);
-        border-radius: 4px;
-    }
-
-    /* Empty state animation */
-    .no-results {
-        animation: fadeIn 0.5s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Modern Table Design */
-    .table {
-        border-radius: var(--border-radius);
-        overflow: hidden;
-        border: none;
-    }
-
-    .data-table-wrapper {
-        overflow-x: auto;
-        padding-bottom: 15px;
-        margin: 0 -5px;
-    }
-
-    .data-table {
-        min-width: 100%;
-        width: auto;
-        margin-bottom: 0;
-    }
-
-    .data-table-wrapper::-webkit-scrollbar {
-        height: 8px;
-    }
-
-    .data-table-wrapper::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 4px;
-    }
-
-    .data-table-wrapper::-webkit-scrollbar-thumb {
-        background: #0984e3;
-        border-radius: 4px;
-    }
-
-    .data-table-wrapper::-webkit-scrollbar-thumb:hover {
-        background: #6c8eb8;
-    }
 </style>
 {% endblock %}
 
@@ -2511,6 +2247,30 @@
                 </div>
                 File Information
             </h3>
+            
+            <!-- Excel Logo with Animation -->
+            <div class="excel-logo">
+                <svg viewBox="0 0 100 100">
+                    <circle class="circle" cx="50" cy="50" r="45"/>
+                    <g class="cells">
+                        <rect x="30" y="30" width="40" height="40" rx="4"/>
+                        <line x1="30" y1="40" x2="70" y2="40"/>
+                        <line x1="30" y1="50" x2="70" y2="50"/>
+                        <line x1="30" y1="60" x2="70" y2="60"/>
+                        <line x1="40" y1="30" x2="40" y2="70"/>
+                        <line x1="50" y1="30" x2="50" y2="70"/>
+                        <line x1="60" y1="30" x2="60" y2="70"/>
+                    </g>
+                    <g class="chart">
+                        <polyline points="35,55 45,45 55,58 65,35"/>
+                    </g>
+                    <g class="sparkles">
+                        <path class="sparkle1" d="M25,25 L28,28 L25,31 L22,28 Z"/>
+                        <path class="sparkle2" d="M70,20 L73,23 L70,26 L67,23 Z"/>
+                        <path class="sparkle3" d="M75,65 L78,68 L75,71 L72,68 Z"/>
+                    </g>
+                </svg>
+            </div>
 
             <div class="file-info-grid">
                 <div class="info-card filename">
@@ -2655,7 +2415,7 @@
                 <p>Try adjusting your search criteria</p>
             </div>
 
-            <div class="statistics-table-wrapper">
+            <div class="table-responsive">
                 <table class="table statistics-table">
                     <thead>
                         <tr>
@@ -2730,7 +2490,7 @@
                 </div>
             </div>
 
-            <div class="data-table-wrapper">
+            <div class="table-container">
                 <table class="table data-table" id="dataTable">
                     <thead>
                         <tr>
@@ -2766,95 +2526,6 @@
                     <button class="page-button" id="nextPage"><i class="fas fa-chevron-right"></i></button>
                 </div>
             </div>
-
-            <script>
-                let currentPage = 1;
-                const rowsPerPage = 10;
-
-                function updateTable() {
-                    const rows = Array.from(dataTable.getElementsByTagName('tr'));
-                    const dataRowCount = rows.length - 1;  // Subtract header row
-                    const paginationContainer = document.querySelector('.pagination-container');
-
-                    if (dataRowCount <= 10) {
-                        rows.forEach(row => row.style.display = '');
-                        if (paginationContainer) {
-                            paginationContainer.style.display = 'none';
-                        }
-                        return;
-                    }
-
-                    if (paginationContainer) {
-                        paginationContainer.style.display = '';
-                    }
-                    const totalRows = dataRowCount;
-                    const totalPages = Math.ceil(totalRows / rowsPerPage);
-
-                    // Update pagination info
-                    document.getElementById('totalRows').textContent = totalRows;
-                    document.getElementById('startRow').textContent = (currentPage - 1) * rowsPerPage + 1;
-                    document.getElementById('endRow').textContent = Math.min(currentPage * rowsPerPage, totalRows);
-
-                    // Show/Hide rows based on current page
-                    for (let i = 0; i < rows.length; i++) {
-                        if (i === 0) {
-                            // Always show header row
-                            rows[i].style.display = '';
-                        } else {
-                            // Show/hide data rows based on current page
-                            rows[i].style.display = (i >= (currentPage - 1) * rowsPerPage + 1 && i < currentPage * rowsPerPage + 1) ? '' : 'none';
-                        }
-                    }
-
-                    // Generate page numbers
-                    const paginationControls = document.querySelector('.pagination-controls');
-                    paginationControls.innerHTML = '';
-
-                    const prevButton = document.createElement('button');
-                    prevButton.className = 'page-button';
-                    prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
-                    prevButton.disabled = currentPage === 1;
-                    prevButton.addEventListener('click', function() {
-                        if (currentPage > 1) {
-                            currentPage--;
-                            updateTable();
-                        }
-                    });
-                    paginationControls.appendChild(prevButton);
-
-                    for (let i = 1; i <= totalPages; i++) {
-                        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-                            const pageButton = document.createElement('button');
-                            pageButton.className = 'page-button' + (i === currentPage ? ' active' : '');
-                            pageButton.textContent = i;
-                            pageButton.addEventListener('click', function() {
-                                currentPage = i;
-                                updateTable();
-                            });
-                            paginationControls.appendChild(pageButton);
-                        } else if (i === currentPage - 2 || i === currentPage + 2) {
-                            const ellipsis = document.createElement('span');
-                            ellipsis.textContent = '...';
-                            paginationControls.appendChild(ellipsis);
-                        }
-                    }
-
-                    const nextPage = document.createElement('button');
-                    nextPage.className = 'page-button';
-                    nextPage.innerHTML = '<i class="fas fa-chevron-right"></i>';
-                    nextPage.disabled = currentPage === totalPages;
-                    nextPage.addEventListener('click', function() {
-                        if (currentPage < totalPages) {
-                            currentPage++;
-                            updateTable();
-                        }
-                    });
-                    paginationControls.appendChild(nextPage);
-                }
-
-                // Initial table update
-                updateTable();
-            </script>
         </div>
 
         <!-- Toast Notifications -->
@@ -2907,7 +2578,7 @@
                         // Initialize statistics for each column
                         headers.forEach((header, colIndex) => {
                             const allValues = rows.map(row => {
-                                if (!row.cells || !row.cells[colIndex]) return { raw: '', numeric: null };
+                                if (!row.cells || !row.cells[colIndex]) return null;
                                 const cell = row.cells[colIndex];
                                 const value = cell.textContent.trim();
                                 const numValue = parseFloat(value);
@@ -3013,21 +2684,25 @@
                             // Show/hide no results message
                             const statsNoResults = document.getElementById('statsNoResults');
                             if (statsNoResults) {
-                                statsNoResults.style.display = hasNumericData ? 'none' : 'block';
+                                statsNoResults.style.display = Object.keys(stats).length === 0 ? 'flex' : 'none';
+                            }
+
+                            // Only show messages if explicitly requested
+                            if (showMessages) {
+                                if (hasNumericData) {
+                                    showToast('success', 'Statistics calculated successfully');
+                                } else {
+                                    showToast('error', 'No numeric data found in selected columns');
+                                }
                             }
                         }
-
-                        if (showMessages) {
-                            showToast('success', 'Statistics calculated successfully');
-                        }
-
                     } catch (error) {
                         console.error('Error calculating statistics:', error);
                         if (showMessages) {
-                            showToast('error', 'Failed to calculate statistics');
+                            showToast('error', 'Error calculating statistics');
                         }
                     }
-                };
+                }
 
                 // Calculate statistics on page load (without showing messages)
                 if (table && thead && tbody) {
@@ -3037,165 +2712,133 @@
                 // Add reload stats functionality
                 const reloadStatsBtn = document.getElementById('reloadStatsBtn');
                 if (reloadStatsBtn) {
-    reloadStatsBtn.addEventListener('click', function() {
-        const button = this;
-        const statsSearchInput = document.querySelector('#statsSearch');
-        const statsColumnFilter = document.querySelector('#statsColumnFilter');
-        const statsNoResults = document.querySelector('#statsNoResults');
-        const statisticsTable = document.querySelector('.statistics-table');
-        
-        // Clear search input and column filter
-        if (statsSearchInput) statsSearchInput.value = '';
-        if (statsColumnFilter) statsColumnFilter.value = 'all';
-        if (statsNoResults) statsNoResults.style.display = 'none';
-        
-        // Show all rows and hide no results message
-        if (statisticsTable) {
-            const rows = statisticsTable.querySelectorAll('tbody tr');
-            rows.forEach(row => row.style.display = '');
-            statisticsTable.style.display = '';
-        }
-        
-        // Add spinning animation
-        button.classList.add('spinning');
-        
-        // Disable button during reload
-        button.disabled = true;
-        
-        // Recalculate statistics
-        calculateStatistics(false); // Do not show messages when manually reloading
-        showToast('success', 'Statistics reloaded successfully');
-        
-        // Remove spinning animation and re-enable button after slight delay
-        setTimeout(() => {
-            button.classList.remove('spinning');
-            button.disabled = false;
-        }, 500);
-    });
-}
+                    reloadStatsBtn.addEventListener('click', function() {
+                        this.classList.add('loading');
+                        setTimeout(() => {
+                            calculateStatistics(false); // Do not show messages when manually reloading
+                            this.classList.remove('loading');
+                        }, 100);
+                    });
+                }
 
                 // Search functionality for both tables
                 let searchTimeout;
                 const highlightClass = 'highlight-match';
 
-                function handleSearch() {
-    const searchTerm = searchInput.value.toLowerCase().trim();
-    const selectedColumn = columnFilter.value;
-    let hasResults = false;
+                function highlightText(text, searchTerm) {
+                    if (!searchTerm) return text;
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    return text.replace(regex, `<span class="highlight-match">$1</span>`);
+                }
 
-    const rows = dataTable.querySelectorAll('tbody tr');
-    const headers = Array.from(document.querySelectorAll('.data-table thead th'));
+                function performTableSearch(tableElement, searchInput, columnFilter, noResultsElement) {
+                    const searchTerm = searchInput.value.toLowerCase().trim();
+                    const selectedColumn = columnFilter ? columnFilter.value : 'all';
+                    const thead = tableElement.querySelector('thead');
+                    const tbody = tableElement.querySelector('tbody');
+                    let visibleRows = 0;
+                    
+                    // Clear previous highlights first
+                    tbody.querySelectorAll('.highlight-match').forEach(highlight => {
+                        const parent = highlight.parentNode;
+                        parent.textContent = parent.textContent; // Remove highlight spans
+                    });
+                    
+                    // Perform search
+                    Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+                        let found = false;
+                        
+                        if (selectedColumn === 'all') {
+                            // Search all columns
+                            Array.from(row.cells).forEach(cell => {
+                                const text = cell.textContent.trim();
+                                if (text.toLowerCase().includes(searchTerm)) {
+                                    cell.innerHTML = highlightText(text, searchTerm);
+                                    found = true;
+                                }
+                            });
+                        } else {
+                            // Search specific column
+                            const columnIndex = Array.from(thead.querySelectorAll('th'))
+                                .findIndex(th => th.textContent.trim() === selectedColumn);
+                            if (columnIndex !== -1) {
+                                const cell = row.cells[columnIndex];
+                                const text = cell.textContent.trim();
+                                if (text.toLowerCase().includes(searchTerm)) {
+                                    cell.innerHTML = highlightText(text, searchTerm);
+                                    found = true;
+                                }
+                            }
+                        }
 
-    // If search is cleared, show all rows and restore pagination
-    if (!searchTerm) {
-        document.getElementById('dataNoResults').style.display = 'none';
-        dataTable.style.display = '';
-        rows.forEach(row => row.style.display = '');
-        const paginationElement = document.querySelector('.pagination-container');
-        if (paginationElement) {
-            paginationElement.style.display = rows.length > 10 ? '' : 'none';
-        }
-        updateTable(); // Reapply pagination
-        return;
-    }
+                        row.style.display = found || !searchTerm ? '' : 'none';
+                        if (found || !searchTerm) visibleRows++;
+                    });
 
-    // Normal search functionality
-    rows.forEach(row => {
-        let cellValue;
-        if (selectedColumn === 'all') {
-            cellValue = Array.from(row.getElementsByTagName('td'))
-                .map(cell => cell.textContent.toLowerCase())
-                .join(' ');
-        } else {
-            // Get the cell based on the selected column name
-            const columnIndex = headers.findIndex(th => 
-                th.textContent.trim().toLowerCase() === selectedColumn.toLowerCase()
-            );
-            const cell = row.querySelector(`td:nth-child(${columnIndex + 1})`);
-            cellValue = cell ? cell.textContent.toLowerCase() : '';
-        }
+                    // Show/hide no results message
+                    if (noResultsElement) {
+                        if (searchTerm && visibleRows === 0) {
+                            noResultsElement.style.display = 'block';
+                            tableElement.style.display = 'none';
+                        } else {
+                            noResultsElement.style.display = 'none';
+                            tableElement.style.display = 'table';
+                        }
+                    }
 
-        if (cellValue.includes(searchTerm)) {
-            row.style.display = '';
-            hasResults = true;
-        } else {
-            row.style.display = 'none';
-        }
-    });
+                    return visibleRows;
+                }
 
-    document.getElementById('dataNoResults').style.display = hasResults ? 'none' : 'block';
-    dataTable.style.display = hasResults ? '' : 'none';
-    
-    const paginationElement = document.querySelector('.pagination-container');
-    if (paginationElement) {
-        paginationElement.style.display = (hasResults && rows.length > 10) ? '' : 'none';
-    }
-}
+                // Main data table search
+                const dataTable = document.getElementById('dataTable');
+                const dataSearchInput = document.getElementById('tableSearch');
+                const dataColumnFilter = document.getElementById('filterColumn');
+                const dataNoResults = document.getElementById('dataNoResults');
+                const paginationContainer = document.querySelector('.pagination-container');
 
-                if (searchInput) {
-                    searchInput.addEventListener('input', function() {
+                if (dataSearchInput) {
+                    dataSearchInput.addEventListener('input', function() {
                         clearTimeout(searchTimeout);
-                        searchTimeout = setTimeout(handleSearch, 300);
+                        searchTimeout = setTimeout(() => {
+                            const visibleRows = performTableSearch(dataTable, dataSearchInput, dataColumnFilter, dataNoResults);
+                            if (paginationContainer) {
+                                paginationContainer.style.display = visibleRows > 0 ? 'flex' : 'none';
+                            }
+                            calculateStatistics(false);
+                        }, 300);
                     });
                 }
 
-                if (columnFilter) {
-                    columnFilter.addEventListener('change', handleSearch);
+                if (dataColumnFilter) {
+                    dataColumnFilter.addEventListener('change', function() {
+                        const visibleRows = performTableSearch(dataTable, dataSearchInput, dataColumnFilter, dataNoResults);
+                        if (paginationContainer) {
+                            paginationContainer.style.display = visibleRows > 0 ? 'flex' : 'none';
+                        }
+                        calculateStatistics(false);
+                    });
                 }
 
                 // Statistics table search
+                const statsTable = document.querySelector('.statistics-table');
                 const statsSearchInput = document.querySelector('#statsSearch');
                 const statsColumnFilter = document.querySelector('#statsColumnFilter');
                 const statsNoResults = document.querySelector('#statsNoResults');
-                const statisticsTable = document.querySelector('.statistics-table');
 
-                if (statsColumnFilter && statsSearchInput) {
-                    const performSearch = () => {
-    const searchTerm = statsSearchInput.value.toLowerCase().trim();
-    const selectedColumn = statsColumnFilter.value;
-    let hasResults = false;
+                if (statsSearchInput) {
+                    statsSearchInput.addEventListener('input', function() {
+                        clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => {
+                            performTableSearch(statsTable, statsSearchInput, statsColumnFilter, statsNoResults);
+                        }, 300);
+                    });
+                }
 
-    const rows = document.querySelectorAll('.statistics-table tbody tr');
-    
-    rows.forEach(row => {
-        if (!searchTerm) {
-            row.style.display = '';
-            hasResults = true;
-        } else {
-            const cells = Array.from(row.getElementsByTagName('td'));
-            let cellValue;
-            
-            if (selectedColumn === 'all') {
-                cellValue = cells.map(cell => cell.textContent.toLowerCase()).join(' ');
-            } else {
-                // Get the cell based on the selected column name
-                const columnIndex = Array.from(document.querySelectorAll('.statistics-table thead th'))
-                    .findIndex(th => th.textContent.trim().toLowerCase() === selectedColumn.toLowerCase());
-                cellValue = columnIndex !== -1 && cells[columnIndex] ? 
-                    cells[columnIndex].textContent.toLowerCase() : '';
-            }
-
-            if (cellValue.includes(searchTerm)) {
-                row.style.display = '';
-                hasResults = true;
-            } else {
-                row.style.display = 'none';
-            }
-        }
-    });
-
-    statsNoResults.style.display = hasResults ? 'none' : 'block';
-    statisticsTable.style.display = hasResults ? '' : 'none';
-};
-
-    // Add event listeners for both search input and column filter
-    statsSearchInput.addEventListener('input', () => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(performSearch, 300);
-    });
-    statsColumnFilter.addEventListener('change', performSearch);
-}
-
+                if (statsColumnFilter) {
+                    statsColumnFilter.addEventListener('change', function() {
+                        performTableSearch(statsTable, statsSearchInput, statsColumnFilter, statsNoResults);
+                    });
+                }
 
                 // File actions
                 downloadBtn.addEventListener('click', function() {
@@ -3234,6 +2877,10 @@
                             const currentValue = cell.textContent.trim();
                             if (originalValue !== currentValue) {
                                 hasChanges = true;
+                                console.log('Changed cell:', {
+                                    original: originalValue,
+                                    current: currentValue
+                                });
                             }
                         }
                     });
@@ -3329,28 +2976,24 @@
                         return;
                     }
 
-                    const thead = table.querySelector('thead');
-                    if (!thead) {
-                        showToast('error', 'Table header not found');
+                    const tableCells = tbody.querySelectorAll('td');
+                    if (tableCells.length === 0) {
+                        showToast('error', 'No cells found in the table');
                         return;
                     }
 
-                    // Make cells editable
-                    const cells = tbody.querySelectorAll('td');
-                    cells.forEach(cell => {
+                    tableCells.forEach(cell => {
+                        // Store original value before making editable
                         cell.setAttribute('data-original', cell.textContent.trim());
                         cell.contentEditable = 'true';
                         cell.classList.add('editing');
                     });
-
-                    // Toggle button visibility
+                    
                     editBtn.classList.add('hidden');
                     saveBtn.classList.remove('hidden');
-                    
-                    // Hide download button and format selector after reload
                     downloadBtn.classList.add('hidden');
                     downloadFormat.classList.add('hidden');
-
+                    
                     showToast('success', 'Table is now editable');
                 });
 
@@ -3564,24 +3207,6 @@
                     const saveBtn = document.getElementById('saveBtn');
                     const downloadBtn = document.getElementById('downloadBtn');
                     const downloadFormat = document.getElementById('downloadFormat');
-                    const searchInput = document.getElementById('tableSearch');
-                    const columnFilter = document.getElementById('filterColumn');
-                    const noResultsElement = document.getElementById('noResults');
-                    const dataTable = document.getElementById('dataTable');
-                    
-                    // Clear search input and column filter
-                    if (searchInput) searchInput.value = '';
-                    if (columnFilter) columnFilter.value = 'all';
-                    document.getElementById('dataNoResults').style.display = 'none';
-                    
-                    // Show all rows and hide no results message
-                    if (noResultsElement) noResultsElement.style.display = 'none';
-                    if (dataTable) {
-                        const rows = dataTable.querySelectorAll('tbody tr');
-                        rows.forEach(row => row.style.display = '');
-                        dataTable.style.display = '';
-                        updateTable();
-                    }
                     
                     // Add spinning animation
                     button.classList.add('spinning');
@@ -3603,10 +3228,6 @@
                             
                             // Update tbody reference after table content update
                             const tbody = currentTable.querySelector('tbody');
-                            
-                            // Reset pagination
-                            currentPage = 1;
-                            updateTable();
                             
                             // Update file info if needed
                             const newFileInfo = newDoc.querySelector('.file-info-grid');
@@ -3807,8 +3428,8 @@
                         showToast('error', 'Nothing to save. Please edit the table to save changes.');
                         return;
                     }
-                    
-                    // Get all table data
+
+                    // Prepare data for saving
                     const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
                     const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
                     

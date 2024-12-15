@@ -8,7 +8,15 @@
 <div id="successMessage" class="alert alert-success" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 1000;">
     <i class="fas fa-check-circle"></i> <span class="message-text"></span>
 </div>
-
+{{ ... }}
+<!-- Loading overlay for bulk delete -->
+<div id="bulkDeleteLoadingOverlay" class="loading-overlay hidden">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Deleting files...</p>
+    </div>
+</div>
+{{ ... }}
 <script>
     // Global variable to track if message has been shown
     window.messageShown = false;
@@ -78,7 +86,52 @@
         gap: 1rem;
         margin-top: 2rem;
     }
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
 
+.loading-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loading-content {
+    text-align: center;
+    color: white;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.loading-text {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
     .btn-cancel, .btn-confirm {
         padding: 0.75rem 1.75rem;
         border: none;
@@ -1301,7 +1354,7 @@
         <p>Are you sure you want to delete <span id="deleteFileCount">0</span> files?</p>
         <div class="confirmation-buttons">
             <button type="button" class="btn-cancel">Cancel</button>
-            <button type="button" class="btn-confirm" id="confirmBulkDelete">Delete Files</button>
+            <button type="button" id="confirmBulkDelete" class="btn-confirm">Delete Files</button>
         </div>
     </div>
 </div>
@@ -2042,16 +2095,19 @@
                                 return;
                             }
                             
-                            // Remove deleted files from DOM
-                            data.deleted_ids.forEach(fileId => {
-                                const fileCard = document.getElementById(`file-card-${fileId}`);
-                                if (fileCard) {
+                            // Otherwise, remove the file card with animation
+                            const fileCard = document.querySelector(`#file-card-${currentFileId}`);
+                            if (fileCard) {
+                                fileCard.style.opacity = '0';
+                                fileCard.style.transform = 'scale(0.9)';
+                                
+                                // Remove the card after animation completes
+                                setTimeout(() => {
                                     fileCard.remove();
-                                }
-                            });
-                            selectedFiles.clear();
-                            updateDeleteSelectedButton();
-                            showSuccessMessage(data.message);
+                                    refreshFilesGrid();
+                                    showSuccessMessage(data.message);
+                                }, 300);
+                            }
                         } else {
                             showErrorMessage(data.message || 'Error deleting file');
                         }
@@ -2162,28 +2218,6 @@
             updateDeleteSelectedButton();
         });
 
-        // Individual checkbox handler
-        document.querySelectorAll('.file-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', function(e) {
-                const fileId = parseInt(this.value);
-                const fileCard = document.getElementById(`file-card-${fileId}`);
-                
-                if (this.checked) {
-                    selectedFiles.add(fileId);
-                    if (fileCard) fileCard.classList.add('selected');
-                } else {
-                    selectedFiles.delete(fileId);
-                    if (fileCard) fileCard.classList.remove('selected');
-                    // Reset select all state and button
-                    isAllSelected = false;
-                    const selectAllBtn = document.getElementById('selectAllBtn');
-                    selectAllBtn.innerHTML = '<i class="fas fa-check-double"></i> Select All';
-                }
-                
-                updateDeleteSelectedButton();
-            });
-        });
-
         // Update the updateDeleteSelectedButton function
         function updateDeleteSelectedButton() {
             const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
@@ -2194,6 +2228,64 @@
                 deleteSelectedBtn.style.display = 'none';
             }
         }
+
+        // Clear selectedFiles and ensure checkboxes are in correct state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            selectedFiles.clear();
+            document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateDeleteSelectedButton();
+        });
+
+        // Initialize event listeners for file cards
+        function initializeFileCards() {
+            // Remove any existing event listeners first
+            document.querySelectorAll('.file-card').forEach(card => {
+                const checkbox = card.querySelector('.custom-checkbox input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.removeEventListener('change', checkboxChangeHandler);
+                }
+            });
+
+            // Add new event listeners
+            document.querySelectorAll('.file-card').forEach(card => {
+                const checkbox = card.querySelector('.custom-checkbox input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.addEventListener('change', checkboxChangeHandler);
+                }
+            });
+        }
+
+        // Separate the checkbox change handler function
+        function checkboxChangeHandler(event) {
+            const fileId = event.target.closest('.file-card').dataset.fileId;
+            if (event.target.checked) {
+                selectedFiles.add(fileId);
+            } else {
+                selectedFiles.delete(fileId);
+            }
+            console.log('Selected files:', Array.from(selectedFiles)); // Debugging line
+            updateDeleteSelectedButton();
+        }
+
+        // Call once on page load
+        initializeFileCards();
+    </script>
+
+    <script>
+        // Clear selectedFiles and ensure checkboxes are in correct state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            selectedFiles.clear();
+            document.querySelectorAll('.file-card').forEach(card => {
+                const checkbox = card.querySelector('.custom-checkbox input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.checked = false; // Ensure checkbox is unchecked initially
+                }
+            });
+            updateDeleteSelectedButton();
+            console.log('Page loaded. Selected files cleared.');
+        });
     </script>
 
     <script>
@@ -2220,6 +2312,9 @@
                         
                         // Reinitialize event listeners for new cards
                         initializeFileCards();
+                        selectedFiles.clear(); // Clear selectedFiles after refresh
+                        updateDeleteSelectedButton();
+                        console.log('Files grid refreshed. Selected files cleared.');
                     }
                 })
                 .catch(error => console.error('Error refreshing grid:', error));
@@ -2227,23 +2322,34 @@
 
         // Initialize event listeners for file cards
         function initializeFileCards() {
+            // Remove any existing event listeners first
             document.querySelectorAll('.file-card').forEach(card => {
-                const checkbox = card.querySelector('.custom-checkbox input');
+                const checkbox = card.querySelector('.custom-checkbox input[type="checkbox"]');
                 if (checkbox) {
-                    checkbox.addEventListener('change', function() {
-                        if (this.checked) {
-                            selectedFiles.add(card.dataset.fileId);
-                        } else {
-                            selectedFiles.delete(card.dataset.fileId);
-                        }
-                        updateDeleteSelectedButton();
-                    });
+                    checkbox.removeEventListener('change', checkboxChangeHandler);
+                }
+            });
+
+            // Add new event listeners
+            document.querySelectorAll('.file-card').forEach(card => {
+                const checkbox = card.querySelector('.custom-checkbox input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.addEventListener('change', checkboxChangeHandler);
                 }
             });
         }
 
-        // Call once on page load
-        initializeFileCards();
+        // Separate the checkbox change handler function
+        function checkboxChangeHandler(event) {
+            const fileId = event.target.closest('.file-card').dataset.fileId;
+            if (event.target.checked) {
+                selectedFiles.add(fileId);
+            } else {
+                selectedFiles.delete(fileId);
+            }
+            console.log('Selected files:', Array.from(selectedFiles)); // Debugging line
+            updateDeleteSelectedButton();
+        }
     </script>
 
     <script>
@@ -2262,20 +2368,31 @@
 
         // Function to handle bulk delete
         async function deleteBulkFiles() {
+            console.log('deleteBulkFiles function called');
             const csrftoken = getCookie('csrftoken');
             
-            fetch('/delete-multiple/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                },
-                body: JSON.stringify({
-                    file_ids: Array.from(selectedFiles)
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
+            // Show loading overlay
+            document.getElementById('bulkDeleteLoadingOverlay').classList.remove('hidden');
+            document.getElementById('bulkDeleteLoadingOverlay').classList.add('show');
+            
+            try {
+                const response = await fetch('/delete-multiple/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({
+                        file_ids: Array.from(selectedFiles)
+                    })
+                });
+
+                const data = await response.json();
+
+                // Hide loading overlay
+                document.getElementById('bulkDeleteLoadingOverlay').classList.remove('show');
+                document.getElementById('bulkDeleteLoadingOverlay').classList.add('hidden');
+
                 if (data.status === 'success') {
                     // Hide the modal first
                     hideDeleteModal('bulkDeleteModal');
@@ -2308,11 +2425,14 @@
                 } else {
                     showErrorMessage(data.message || 'Error deleting files');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
+                // Hide loading overlay on error
+                document.getElementById('bulkDeleteLoadingOverlay').classList.remove('show');
+                document.getElementById('bulkDeleteLoadingOverlay').classList.add('hidden');
+                
                 console.error('Error:', error);
                 showErrorMessage('Error deleting files. Please try again.');
-            });
+            }
         }
     </script>
 
@@ -2413,6 +2533,83 @@
             background: #c82333;
         }
     </style>
+    <script>
+        // Add loading overlay HTML and CSS for multiple file deletion
+        const bulkDeleteLoadingOverlay = document.createElement('div');
+        bulkDeleteLoadingOverlay.id = 'bulkDeleteLoadingOverlay';
+        bulkDeleteLoadingOverlay.className = 'loading-overlay hidden';
+        bulkDeleteLoadingOverlay.innerHTML = `
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Deleting files...</p>
+            </div>
+        `;
+        document.body.appendChild(bulkDeleteLoadingOverlay);
+
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Loading Overlay Styles */
+            .loading-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(5px);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease, visibility 0.3s ease;
+            }
+
+            .loading-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            .loading-content {
+                text-align: center;
+                color: white;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                border-top-color: white;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 1rem;
+            }
+
+            .loading-text {
+                font-size: 1.2rem;
+                margin: 0;
+            }
+
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Show loading overlay when bulk delete is initiated
+        document.getElementById('confirmBulkDelete').addEventListener('click', function() {
+            bulkDeleteLoadingOverlay.classList.remove('hidden');
+            bulkDeleteLoadingOverlay.classList.add('show');
+        });
+
+        // Hide loading overlay when bulk delete is complete
+        document.addEventListener('bulkDeleteComplete', function() {
+            bulkDeleteLoadingOverlay.classList.remove('show');
+            bulkDeleteLoadingOverlay.classList.add('hidden');
+        });
+    </script>
     <script>
         function showSingleDeleteConfirmation(fileId, fileName) {
             console.log('Opening delete modal for:', fileId, fileName);
