@@ -467,6 +467,8 @@
                     selectedFiles.delete(file);
                 }
             });
+            // Reset the file input value so the same file can be selected again
+            fileInput.value = '';
             updateFileList();
         }
 

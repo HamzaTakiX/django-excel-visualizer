@@ -1,17 +1,8 @@
-"""
-Main views file for the Excel Visualization Application.
-This file contains all the view functions that handle different routes and functionalities
-of the application, including file upload, visualization, and management operations.
-"""
-
 from django.shortcuts import render, redirect
-from django.http import JsonResponse, HttpResponse, FileResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 import pandas as pd
 import os
-from datetime import datetime
-import pytz
-from django.utils import timezone
 from .models import ExcelFile
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -19,51 +10,44 @@ import json
 from django.conf import settings
 import numpy as np
 from scipy.stats import binom, poisson, norm, bernoulli, uniform, expon
-import plotly.graph_objects as go
-import plotly.graph_objects
+
 
 def handle_uploaded_file(file):
     """
     Process an uploaded Excel file and extract its information.
-    
-    Args:
-        file: The uploaded file object from the request
-        
-    Returns:
-        tuple: (file_info, df_json) where:
-            - file_info: Dictionary containing file metadata
-            - df_json: JSON representation of the Excel data
-            
-    Raises:
-        Exception: If there's an error processing the file
     """
     try:
-        # Try reading with different Excel engines
-        try:
-            # Try openpyxl first (for .xlsx files)
-            df = pd.read_excel(file, engine='openpyxl')
-        except:
-            try:
-                # Try xlrd as fallback (for .xls files)
-                df = pd.read_excel(file, engine='xlrd')
-            except:
-                # Try odf as another fallback (for .ods files)
-                df = pd.read_excel(file, engine='odf')
+        # Determine file extension
+        file_ext = os.path.splitext(file.name)[1].lower()
         
-        # Store the DataFrame in session as JSON
-        df_json = df.to_json()
+        # Choose engine based on file extension
+        if file_ext == '.xlsx':
+            engine = 'openpyxl'
+        elif file_ext == '.xls':
+            engine = 'xlrd'
+        elif file_ext == '.ods':
+            engine = 'odf'
+        else:
+            engine = 'openpyxl'  # default
+            
+        # Read only the first few rows to get column info
+        df_sample = pd.read_excel(file, engine=engine, nrows=5)
+        columns_count = len(df_sample.columns)
         
-        # Get file information
+        # Reset file pointer
+        file.seek(0)
+        
+        # Get row count without loading entire file
+        rows_count = sum(1 for row in pd.read_excel(file, engine=engine, chunksize=1000))
+        
         file_info = {
-            'file_name': file.name,
-            'upload_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'rows': len(df),
-            'columns': len(df.columns),
-            'file_size': f"{file.size / 1024:.2f} KB",
-            'preview': df.head().to_html(classes=['table', 'table-striped', 'table-hover'], index=False)
+            'rows_count': rows_count,
+            'columns_count': columns_count,
+            'file_size': file.size,
         }
         
-        return file_info, df_json
+        return file_info, df_sample.to_json()
+        
     except Exception as e:
         raise Exception(f"Error processing file: {str(e)}")
 
@@ -1021,9 +1005,10 @@ def read_file_with_pandas(file_path):
 def get_file_columns(request, file_id):
     """
     API endpoint to get columns from a file.
-    Returns only numeric columns for graph creation.
+    Returns both numeric and categorical columns with their types.
     """
     try:
+        graph_type = request.GET.get('graph_type', 'line')
         excel_file = ExcelFile.objects.get(id=file_id)
         file_path = excel_file.file.path
         
@@ -1033,16 +1018,45 @@ def get_file_columns(request, file_id):
             else:
                 df = pd.read_excel(file_path)
             
-            # Get only numeric columns
-            numeric_columns = df.select_dtypes(include=['int64', 'float64', 'int32', 'float32']).columns.tolist()
+            # Get numeric columns
+            numeric_dtypes = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+            numeric_columns = df.select_dtypes(include=numeric_dtypes).columns.tolist()
+            
+            # Get categorical columns - include both object and any column with less than 50% unique values
+            categorical_columns = []
+            for col in df.columns:
+                if col not in numeric_columns:
+                    # If it's already an object/category type, or if it has low cardinality
+                    if df[col].dtype == 'object' or df[col].dtype.name == 'category' or \
+                       (len(df[col].unique()) / len(df[col]) < 0.5 and len(df[col].unique()) > 1):
+                        categorical_columns.append(col)
+            
+            # For box plots and some other types, we only want numeric columns
+            if graph_type in ['scatter', 'line']:
+                columns = numeric_columns
+            elif graph_type == 'box':
+                # For box plots, allow both types for x-axis but only numeric for y-axis
+                columns = numeric_columns + categorical_columns
+            else:
+                # For bar, pie charts etc, we can use both numeric and categorical
+                columns = numeric_columns + categorical_columns
+            
+            # Print debug info
+            print(f"File: {file_path}")
+            print(f"All columns: {df.columns.tolist()}")
+            print(f"Column types: {df.dtypes.to_dict()}")
+            print(f"Numeric columns: {numeric_columns}")
+            print(f"Categorical columns: {categorical_columns}")
             
             return JsonResponse({
-                'columns': numeric_columns,
-                'total_columns': len(df.columns),
-                'numeric_columns': len(numeric_columns)
+                'columns': columns,
+                'numeric_columns': numeric_columns,
+                'categorical_columns': categorical_columns,
+                'total_columns': len(df.columns)
             })
             
         except Exception as e:
+            print(f"Error reading file: {str(e)}")
             return JsonResponse({'error': f'Error reading file: {str(e)}'}, status=400)
             
     except ExcelFile.DoesNotExist:
@@ -1391,15 +1405,17 @@ def create_graph(request):
                 
                 # Handle bar graph
                 if graph_type == 'bar':
-                    # Convert y-column to numeric
-                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
-                    df = df.dropna(subset=[y_column])
+                    # For bar graphs, we can use categorical data
+                    # Count occurrences if y is categorical, otherwise sum numeric values
+                    if pd.api.types.is_numeric_dtype(df[y_column]):
+                        # If y is numeric, sum the values
+                        bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                    else:
+                        # If y is categorical, count occurrences
+                        bar_data = df.groupby(x_column).size().reset_index(name=y_column)
                     
-                    if df.empty:
-                        return JsonResponse({'error': 'No valid numeric data points'}, status=400)
-                    
-                    # Group by x_column and sum y_column values
-                    bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                    if bar_data.empty:
+                        return JsonResponse({'error': 'No valid data points'}, status=400)
                     
                     # Create bar trace
                     trace = {
@@ -1416,9 +1432,9 @@ def create_graph(request):
                         'showlegend': True,
                         'template': 'plotly_white',
                         'xaxis': {'title': {'text': x_column}},
-                        'yaxis': {'title': {'text': y_column}}
+                        'yaxis': {'title': {'text': y_column if pd.api.types.is_numeric_dtype(df[y_column]) else 'Count'}}
                     }
-                    
+
                 # Handle pie chart
                 elif graph_type == 'pie':
                     df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
@@ -1437,6 +1453,32 @@ def create_graph(request):
                         'title': {'text': title},
                         'showlegend': True,
                         'template': 'plotly_white'
+                    }
+
+                # Handle box plot
+                elif graph_type == 'box':
+                    # Convert only y-column to numeric (x can be categorical)
+                    df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
+                    df = df.dropna(subset=[y_column])
+                    
+                    if df.empty:
+                        return JsonResponse({'error': 'No valid numeric data points for y-axis'}, status=400)
+                    
+                    # Create box plot trace
+                    trace = {
+                        'type': 'box',
+                        'x': df[x_column].tolist(),
+                        'y': df[y_column].tolist(),
+                        'name': y_column,
+                        'marker': {'color': color}
+                    }
+                    
+                    layout = {
+                        'title': {'text': title},
+                        'showlegend': True,
+                        'template': 'plotly_white',
+                        'xaxis': {'title': {'text': x_column}},
+                        'yaxis': {'title': {'text': y_column}}
                     }
                     
                 # Handle scatter plot
@@ -1636,15 +1678,17 @@ def create_bar_graph(request):
                 if y_column not in df.columns:
                     return JsonResponse({'error': f'Column {y_column} not found in file'}, status=400)
                 
-                # Convert y-column to numeric
-                df[y_column] = pd.to_numeric(df[y_column], errors='coerce')
-                df = df.dropna(subset=[y_column])
+                # For bar graphs, we can use categorical data
+                # Count occurrences if y is categorical, otherwise sum numeric values
+                if pd.api.types.is_numeric_dtype(df[y_column]):
+                    # If y is numeric, sum the values
+                    bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                else:
+                    # If y is categorical, count occurrences
+                    bar_data = df.groupby(x_column).size().reset_index(name=y_column)
                 
-                if df.empty:
-                    return JsonResponse({'error': 'No valid numeric data points'}, status=400)
-                
-                # Group by x_column and sum y_column values
-                bar_data = df.groupby(x_column)[y_column].sum().reset_index()
+                if bar_data.empty:
+                    return JsonResponse({'error': 'No valid data points'}, status=400)
                 
                 trace = {
                     'type': 'bar',
@@ -1661,7 +1705,7 @@ def create_bar_graph(request):
                     'showlegend': True,
                     'template': 'plotly_white',
                     'xaxis': {'title': {'text': x_column}},
-                    'yaxis': {'title': {'text': y_column}}
+                    'yaxis': {'title': {'text': y_column if pd.api.types.is_numeric_dtype(df[y_column]) else 'Count'}}
                 }
                 
                 graph_data = {

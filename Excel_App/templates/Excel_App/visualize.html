@@ -2940,13 +2940,13 @@
                                     : sorted[mid];
 
                                 // Calculate mode
-                                const valueCounts = {};
+                                const counts = {};
                                 allValues.forEach(v => {
                                     if (v && v.raw) {
-                                        valueCounts[v.raw] = (valueCounts[v.raw] || 0) + 1;
+                                        counts[v.raw] = (counts[v.raw] || 0) + 1;
                                     }
                                 });
-                                const mode = Object.entries(valueCounts)
+                                const mode = Object.entries(counts)
                                     .sort((a, b) => b[1] - a[1])[0][0];
 
                                 // Calculate standard deviation
@@ -2959,6 +2959,7 @@
                                     nonNullCount: nonNullCount,
                                     nullCount: nullCount,
                                     mean: mean,
+                                    average: mean,
                                     median: median,
                                     mode: mode,
                                     min: Math.min(...numericValues),
@@ -3359,8 +3360,8 @@
                 const calculationType = document.getElementById('calculationType');
                 const calculateBtn = document.getElementById('calculateBtn');
                 const analysisResult = document.getElementById('analysisResult');
-                const copyBtn = document.getElementById('copyStatsBtn');
-                const resetBtn = document.getElementById('resetStatsBtn');
+                const copyBtn = document.querySelector('.copy-stats-btn');
+                const resetBtn = document.querySelector('.reset-btn');
 
                 // Initialize result and copy button visibility
                 if (analysisResult) analysisResult.style.display = 'none';
@@ -3377,182 +3378,156 @@
                     const calculation = calculationType.value;
 
                     if (!column || !calculation) {
-                        showToast('error', 'Please select both column and calculation type');
+                        showToast('error', 'Please select both a column and calculation type');
                         return;
                     }
-
+                    
                     try {
-                        // Add calculating state
-                        this.classList.add('calculating');
-                        this.disabled = true;  // Disable button during calculation
-
-                        // Get all table cells from the selected column
-                        const tableHeaders = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
-                        const columnIndex = tableHeaders.indexOf(column);
+                        const stats = {};
+                        const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
+                        const columnIndex = Array.from(thead.querySelectorAll('th')).findIndex(th => th.textContent.trim() === column);
                         
                         if (columnIndex === -1) {
                             throw new Error('Column not found');
                         }
-
-                        // Get column data
-                        const columnData = Array.from(tbody.querySelectorAll('tr')).map(row => {
-                            if (!row.cells || !row.cells[columnIndex]) return null;
+                        
+                        // Get all values for the selected column
+                        const values = rows.map(row => {
                             const cell = row.cells[columnIndex];
-                            const value = parseFloat(cell.textContent.trim());
-                            return isNaN(value) ? null : value;
-                        }).filter(val => val !== null);
-
-                        if (columnData.length === 0) {
-                            // Hide the output result and copy button
-                            if (analysisResult) analysisResult.style.display = 'none';
-                            if (copyBtn) copyBtn.style.display = 'none';
-                            if (resetBtn) resetBtn.style.display = 'none';
-                            throw new Error('No numeric data found in selected column');
+                            const value = cell ? cell.textContent.trim() : '';
+                            const numValue = parseFloat(value);
+                            return {
+                                raw: value,
+                                numeric: isNaN(numValue) ? null : numValue
+                            };
+                        });
+                        
+                        // Handle both "mean" and "average" as the same calculation
+                        if (calculation === 'average' || calculation === 'mean') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            const sum = numericValues.reduce((a, b) => a + b, 0);
+                            const mean = sum / numericValues.length;
+                            stats.result = mean;
+                            stats.type = 'Average';
+                        } else if (calculation === 'sum') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            stats.result = numericValues.reduce((a, b) => a + b, 0);
+                            stats.type = 'Sum';
+                        } else if (calculation === 'count') {
+                            stats.result = values.filter(v => v.raw !== '').length;
+                            stats.type = 'Count';
+                        } else if (calculation === 'min') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            stats.result = Math.min(...numericValues);
+                            stats.type = 'Minimum';
+                        } else if (calculation === 'max') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            stats.result = Math.max(...numericValues);
+                            stats.type = 'Maximum';
+                        } else if (calculation === 'median') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null).sort((a, b) => a - b);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            const mid = Math.floor(numericValues.length / 2);
+                            stats.result = numericValues.length % 2 === 0 
+                                ? (numericValues[mid - 1] + numericValues[mid]) / 2 
+                                : numericValues[mid];
+                            stats.type = 'Median';
+                        } else if (calculation === 'mode') {
+                            const counts = {};
+                            values.forEach(v => {
+                                if (v.raw) {
+                                    counts[v.raw] = (counts[v.raw] || 0) + 1;
+                                }
+                            });
+                            const mode = Object.entries(counts)
+                                .sort((a, b) => b[1] - a[1])[0];
+                            stats.result = mode[0];
+                            stats.type = 'Mode';
+                        } else if (calculation === 'stddev') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            if (numericValues.length === 0) {
+                                throw new Error('No numeric values found in column');
+                            }
+                            const mean = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+                            const squareDiffs = numericValues.map(value => Math.pow(value - mean, 2));
+                            const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / numericValues.length;
+                            stats.result = Math.sqrt(avgSquareDiff);
+                            stats.type = 'Standard Deviation';
+                        } else if (calculation === 'nullcount') {
+                            stats.result = values.filter(v => !v.raw).length;
+                            stats.type = 'Null Count';
+                        } else if (calculation === 'nonnullcount') {
+                            stats.result = values.filter(v => v.raw).length;
+                            stats.type = 'Non-Null Count';
+                        } else if (calculation === 'datatype') {
+                            const numericValues = values.map(v => v.numeric).filter(v => v !== null);
+                            stats.result = numericValues.length === values.filter(v => v.raw).length ? 'Numeric' : 'Text';
+                            stats.type = 'Data Type';
+                        } else if (calculation === 'statistics') {
+                            // Calculate all statistics
+                            calculateStatistics(true);
+                            return;
                         }
-
-                        let result;
-                        switch (calculation) {
-                            case 'mean':
-                                result = columnData.reduce((a, b) => a + b, 0) / columnData.length;
-                                break;
-                            case 'median':
-                                const sorted = [...columnData].sort((a, b) => a - b);
-                                const mid = Math.floor(sorted.length / 2);
-                                result = sorted.length % 2 === 0 
-                                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                                    : sorted[mid];
-                                break;
-                            case 'mode':
-                                const counts = {};
-                                columnData.forEach(val => counts[val] = (counts[val] || 0) + 1);
-                                const maxCount = Math.max(...Object.values(counts));
-                                result = Object.keys(counts).find(key => counts[key] === maxCount);
-                                break;
-                            case 'sum':
-                                result = columnData.reduce((a, b) => a + b, 0);
-                                break;
-                            case 'count':
-                                result = columnData.length;
-                                break;
-                            case 'min':
-                                result = Math.min(...columnData);
-                                break;
-                            case 'max':
-                                result = Math.max(...columnData);
-                                break;
-                            case 'stddev':
-                                const mean = columnData.reduce((a, b) => a + b, 0) / columnData.length;
-                                const squareDiffs = columnData.map(value => Math.pow(value - mean, 2));
-                                const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / columnData.length;
-                                result = Math.sqrt(avgSquareDiff);
-                                break;
-                            case 'nullcount':
-                                result = columnData.length - columnData.filter(val => val !== null).length;
-                                break;
-                            case 'nonnullcount':
-                                result = columnData.filter(val => val !== null).length;
-                                break;
-                            case 'datatype':
-                                result = Array.from(tbody.querySelectorAll('tr')).every(row => {
-                                    const cell = row.cells[columnIndex];
-                                    const value = cell.textContent.trim();
-                                    return !isNaN(parseFloat(value));
-                                }) ? 'Numeric' : 'Text';
-                                break;
-                            case 'statistics':
-                                const stats = {};
-                                stats.mean = columnData.reduce((a, b) => a + b, 0) / columnData.length;
-                                stats.median = sorted.length % 2 === 0 
-                                    ? (sorted[mid - 1] + sorted[mid]) / 2 
-                                    : sorted[mid];
-                                stats.mode = Object.keys(counts).find(key => counts[key] === maxCount);
-                                stats.min = Math.min(...columnData);
-                                stats.max = Math.max(...columnData);
-                                stats.stddev = Math.sqrt(avgSquareDiff);
-                                stats.nullcount = columnData.length - columnData.filter(val => val !== null).length;
-                                stats.nonnullcount = columnData.filter(val => val !== null).length;
-                                stats.datatype = Array.from(tbody.querySelectorAll('tr')).every(row => {
-                                    const cell = row.cells[columnIndex];
-                                    const value = cell.textContent.trim();
-                                    return !isNaN(parseFloat(value));
-                                }) ? 'Numeric' : 'Text';
-                                result = JSON.stringify(stats, null, 2);
-                                break;
-                            default:
-                                throw new Error('Invalid calculation type');
-                        }
-
+                        
                         // Format the result
-                        const formattedResult = typeof result === 'number' ? result.toFixed(2) : result;
-                        const resultText = `${calculation.charAt(0).toUpperCase() + calculation.slice(1)} of ${column}: ${formattedResult}`;
-                        
-                        // Display result
-                        if (analysisResult) {
-                            analysisResult.textContent = resultText;
-                            analysisResult.style.display = 'block';
+                        let formattedResult = stats.result;
+                        if (typeof stats.result === 'number' && !Number.isInteger(stats.result)) {
+                            formattedResult = stats.result.toFixed(4);
                         }
                         
-                        // Show copy button
-                        if (copyBtn) {
-                            copyBtn.style.display = 'inline-flex';
-                        }
-                        if (resetBtn) {
-                            resetBtn.style.display = 'inline-flex';
-                        }
+                        // Display the result
+                        analysisResult.textContent = `${stats.type} for ${column}: ${formattedResult}`;
+                        analysisResult.style.display = 'block';
+                        copyBtn.style.display = 'flex';
+                        resetBtn.style.display = 'flex';
                         
-                        showToast('success', 'Calculation completed');
+                        showToast('success', 'Calculation completed successfully');
                     } catch (error) {
-                        showToast('error', error.message);
-                    } finally {
-                        // Always remove calculating state and re-enable button after slight delay
-                        setTimeout(() => {
-                            this.classList.remove('calculating');
-                            this.disabled = false;
-                        }, 500);
+                        console.error('Calculation error:', error);
+                        showToast('error', error.message || 'Error performing calculation');
                     }
                 });
-
-                // Add copy functionality for statistics
+                
+                // Add copy button handler
                 if (copyBtn) {
                     copyBtn.addEventListener('click', function() {
-                        if (!analysisResult) return;
-                        const resultText = analysisResult.textContent;
-                        if (!resultText) return;
-
-                        // Copy to clipboard
-                        navigator.clipboard.writeText(resultText).then(() => {
-                            showToast('success', 'Results copied to clipboard!');
-                        }).catch(err => {
-                            showToast('error', 'Failed to copy results');
-                            console.error('Failed to copy:', err);
-                        });
+                        const resultDiv = document.getElementById('analysisResult');
+                        if (resultDiv) {
+                            navigator.clipboard.writeText(resultDiv.textContent)
+                                .then(() => showToast('success', 'Statistics copied to clipboard'))
+                                .catch(() => showToast('error', 'Failed to copy statistics'));
+                        }
                     });
                 }
-
-                // Add reset functionality for statistics
+                
+                // Add reset button handler
                 if (resetBtn) {
                     resetBtn.addEventListener('click', function() {
-                        // Reset select inputs
-                        if (columnSelect) columnSelect.value = columnSelect.options[0].value;
-                        if (calculationType) calculationType.value = calculationType.options[0].value;
+                        const resultDiv = document.getElementById('analysisResult');
+                        const copyBtn = document.querySelector('.copy-stats-btn');
+                        const resetBtn = document.querySelector('.reset-btn');
                         
-                        // Clear the results
-                        if (analysisResult) {
-                            analysisResult.style.display = 'none';
-                            analysisResult.textContent = '';
-                        }
-                        
-                        // Hide buttons
+                        resultDiv.style.display = 'none';
                         copyBtn.style.display = 'none';
                         resetBtn.style.display = 'none';
                         
-                        // Clear any highlighted cells
-                        const cells = tbody.querySelectorAll('td');
-                        cells.forEach(cell => {
-                            cell.classList.remove('highlight');
-                        });
-                        
-                        showToast('success', 'Statistics reset successfully');
+                        // Reset select elements
+                        columnSelect.value = '';
+                        calculationType.value = '';
                     });
                 }
 
@@ -3622,7 +3597,7 @@
                             // Hide download button and format selector after reload
                             downloadBtn.classList.add('hidden');
                             downloadFormat.classList.add('hidden');
-                            
+
                             // Make cells non-editable
                             const cells = currentTable.querySelectorAll('td');
                             cells.forEach(cell => {

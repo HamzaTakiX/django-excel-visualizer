@@ -39,22 +39,25 @@
 
     .file-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 1rem;
         margin-top: 1rem;
     }
 
     .file-card {
         cursor: pointer;
-        padding: 15px;
+        padding: 12px 15px;
         border: 2px solid #e0e0e0;
         border-radius: 8px;
-        margin: 10px 0;
+        margin: 8px 0;
         transition: all 0.3s ease;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         background-color: white;
+        max-width: 100%;
+        position: relative;
+        overflow: hidden;
     }
 
     .file-card:hover {
@@ -72,6 +75,54 @@
     .file-icon {
         color: #007bff;
         font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .file-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .file-name {
+        font-weight: 500;
+        color: #2c3e50;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .file-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .file-size {
+        background-color: #e9ecef;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+    }
+
+    .file-date {
+        font-size: 0.75rem;
+    }
+
+    .file-extension {
+        text-transform: uppercase;
+        background-color: #007bff;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
     }
 
     .no-files {
@@ -313,7 +364,16 @@
                 {% for file in excel_files %}
                     <div class="file-card" onclick='selectFile("{{ file.id|escapejs }}", "{{ file.path|escapejs }}")' id="file-{{ file.id }}">
                         <i class="fas fa-file-excel file-icon"></i>
-                        <span>{{ file.name }}</span>
+                        <div class="file-info">
+                            <p class="file-name" title="{{ file.name }}">{{ file.name }}</p>
+                            <div class="file-meta">
+                                <span class="file-extension">{{ file.name|slice:"-4:" }}</span>
+                                {% if file.file.size > 0 %}
+                                    <span class="file-size">{{ file.get_file_size_display }}</span>
+                                {% endif %}
+                                <span class="file-date">{{ file.uploaded_at|date:"d/m/Y" }}</span>
+                            </div>
+                        </div>
                     </div>
                 {% endfor %}
             </div>
@@ -387,6 +447,8 @@
 <script>
     let selectedFileId = null;
     let selectedFilePath = null;
+    let numericColumns = [];
+    let categoricalColumns = [];
 
     function selectFile(fileId, filePath) {
         // Remove previous selection
@@ -404,8 +466,12 @@
         selectedFileId = fileId;
         selectedFilePath = filePath;
 
+        // Get graph type from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const graphType = urlParams.get('type') || 'line';
+
         // Fetch columns for the selected file
-        fetch('/get_file_columns/' + fileId + '/')
+        fetch('/get_file_columns/' + fileId + '/?graph_type=' + graphType)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -417,14 +483,27 @@
                     const xSelect = document.getElementById('x_column');
                     const ySelect = document.getElementById('y_column');
                     
+                    // Store column types
+                    numericColumns = data.numeric_columns || [];
+                    categoricalColumns = data.categorical_columns || [];
+                    
                     // Clear previous options
                     xSelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
                     ySelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
                     
                     // Add new options
                     data.columns.forEach(column => {
-                        xSelect.add(new Option(column, column));
-                        ySelect.add(new Option(column, column));
+                        const isNumeric = numericColumns.includes(column);
+                        const isCategorical = categoricalColumns.includes(column);
+                        const optionText = column + (isNumeric ? ' (Numérique)' : isCategorical ? ' (Catégorie)' : '');
+                        
+                        // Add to x-axis dropdown (all columns for box plots)
+                        xSelect.add(new Option(optionText, column));
+                        
+                        // For y-axis, only allow numeric columns for box plots
+                        if (graphType !== 'box' || isNumeric) {
+                            ySelect.add(new Option(optionText, column));
+                        }
                     });
                     
                     // Show data selection section
@@ -453,38 +532,6 @@
                 container.removeChild(notification);
             }, 300);
         }, 5000);
-    }
-
-    function fetchColumns(fileId) {
-        fetch('/get_file_columns/' + fileId + '/')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.columns && Array.isArray(data.columns)) {
-                    const xSelect = document.getElementById('x_column');
-                    const ySelect = document.getElementById('y_column');
-                    
-                    // Clear previous options
-                    xSelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
-                    ySelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
-                    
-                    // Add new options
-                    data.columns.forEach(column => {
-                        xSelect.add(new Option(column, column));
-                        ySelect.add(new Option(column, column));
-                    });
-                } else {
-                    showNotification('Erreur: Aucune colonne trouvée dans le fichier', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('Erreur lors du chargement des colonnes', 'error');
-            });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -522,6 +569,21 @@
             createButton.innerHTML = `<i class="fas fa-chart-line"></i> Créer le graphique ${graphTypeName}`;
         }
         
+        // Add event listeners to column selects
+        const xSelect = document.getElementById('x_column');
+        const ySelect = document.getElementById('y_column');
+
+        // For box plots, validate y-axis selection
+        if (graphType === 'box') {
+            ySelect.addEventListener('change', function() {
+                const selectedColumn = this.value;
+                if (selectedColumn && !numericColumns.includes(selectedColumn)) {
+                    showNotification('Pour les box plots, l\'axe Y doit être une colonne numérique', 'error');
+                    this.value = '';
+                }
+            });
+        }
+
         document.getElementById('create-graph-btn').addEventListener('click', function() {
             if (!selectedFileId) {
                 showNotification('Veuillez sélectionner un fichier Excel', 'error');
@@ -620,7 +682,35 @@
             // Don't reset file selection
             // Keep the columns dropdown populated
             if (selectedFileId) {
-                fetchColumns(selectedFileId);
+                fetch('/get_file_columns/' + selectedFileId + '/')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.columns && Array.isArray(data.columns)) {
+                            const xSelect = document.getElementById('x_column');
+                            const ySelect = document.getElementById('y_column');
+                            
+                            // Clear previous options
+                            xSelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                            ySelect.innerHTML = '<option value="">Sélectionner une colonne</option>';
+                            
+                            // Add new options
+                            data.columns.forEach(column => {
+                                xSelect.add(new Option(column, column));
+                                ySelect.add(new Option(column, column));
+                            });
+                        } else {
+                            showNotification('Erreur: Aucune colonne trouvée dans le fichier', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Erreur lors du chargement des colonnes', 'error');
+                    });
             }
             
             // Show success notification
